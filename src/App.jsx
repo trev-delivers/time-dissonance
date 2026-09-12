@@ -24,11 +24,6 @@ function secondSundayOf(year, month) {
   return new Date(year, month, f.getDate() + 7);
 }
 
-function nthSundayOf(year, month, n) {
-  const f = firstSundayOf(year, month);
-  return new Date(year, month, f.getDate() + (n - 1) * 7);
-}
-
 // Returns array of { year, springForward } dates for a region between birth and now
 function getDSTSprings(regionKey, birthDate, toDate) {
   const region = DST_REGIONS[regionKey];
@@ -205,26 +200,6 @@ function calcDissonance(dob, region, flightKey) {
     regionNoDST: reg && reg.noDST,
   };
 }
-
-// ─────────────────────────────────────────────────────────────
-// SOLAR FLARE TIMELINE DATA
-// ─────────────────────────────────────────────────────────────
-const SOLAR_EVENTS = [
-  { date: "1859-09-01", label: "Carrington Event", severity: "G5+", desc: "The most powerful geomagnetic storm on record. Telegraph systems worldwide caught fire. Operators received electric shocks. Auroras visible at the equator." },
-  { date: "1921-05-15", label: "New York Railroad Storm", severity: "G5+", desc: "Severely disrupted telegraph and telephone systems across North America and Europe. One of the largest storms of the 20th century." },
-  { date: "1938-01-21", label: "Great Aurora Storm", severity: "G5", desc: "Massive storm visible as far south as Portugal. Disrupted radio communications and early aviation navigation across Europe and North America." },
-  { date: "1958-02-10", label: "Feb 1958 Superstorm", severity: "G5", desc: "One of the largest storms of the Space Age. Caused widespread power and communications disruptions across Canada and the northern US." },
-  { date: "1972-08-04", label: "Aug 1972 Storm", severity: "G5", desc: "Caused accidental detonation of US naval mines off North Vietnam due to magnetic field disruption. Also knocked out AT&T long-lines communications across the US." },
-  { date: "1989-03-13", label: "Quebec Blackout", severity: "G5", desc: "Knocked out power across Quebec for 9 hours. 6 million people lost electricity. Auroras visible in Texas and Florida. Transformer damage took months to repair." },
-  { date: "1994-07-14", label: "Bastille Day Precursor", severity: "G4", desc: "Disrupted satellite communications and caused navigation errors for aircraft over the North Atlantic." },
-  { date: "2000-07-14", label: "Bastille Day Event", severity: "G5", desc: "X5.7 solar flare launched a CME directly at Earth. Disrupted satellites, caused radio blackouts, and produced auroras visible across Europe. Observed by both Voyager spacecraft." },
-  { date: "2003-10-29", label: "Halloween Storms", severity: "G5", desc: "The 'Halloween storms' — 17 major flares over two weeks. The X28 flare on Nov 4 may be the largest ever measured. Two G5 events within days of each other. Power grid fluctuations across Europe and North America." },
-  { date: "2005-01-20", label: "Solar Proton Event", severity: "G3", desc: "One of the fastest-moving CMEs ever recorded. Reached Earth in under 35 minutes. Caused severe radio blackouts and endangered high-altitude aircraft on polar routes." },
-  { date: "2012-07-23", label: "Near Miss Event", severity: "G5+", desc: "A Carrington-class CME erupted — but missed Earth by 9 days. Scientists later calculated it would have caused an estimated $2 trillion in damage to global infrastructure." },
-  { date: "2015-03-17", label: "St Patrick's Day Storm", severity: "G4", desc: "The strongest storm of Solar Cycle 24. Disrupted GPS signals globally, caused radio blackouts, and produced auroras visible across the UK and northern US." },
-  { date: "2017-09-06", label: "X9.3 Flare", severity: "G3", desc: "The largest solar flare of Solar Cycle 24. Caused significant radio blackouts across Europe, Africa, and the Atlantic. GPS and navigation systems affected." },
-  { date: "2024-05-10", label: "Gannon Storm", severity: "G5", desc: "The strongest storm since 2003. Caused auroras visible across the UK, Europe, and as far south as Florida and Mexico. GPS errors disrupted automated farm equipment. Radio blackouts affected aviation." },
-];
 
 // ─────────────────────────────────────────────────────────────
 // COMBINED TIMELINE (historical + solar)
