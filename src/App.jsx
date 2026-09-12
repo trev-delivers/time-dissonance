@@ -256,6 +256,26 @@ const styles = `
     --green:#4ab07a;
   }
 
+  /* Respect OS-level motion preference: kill animation/transition duration
+     everywhere rather than removing effects one by one, so nothing is
+     missed as the page grows. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  a, button, input, select, [tabindex] { -webkit-tap-highlight-color: transparent; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--amber-hi);
+    outline-offset: 2px;
+  }
+
+  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;box-shadow:0 0 6px rgba(240,160,80,0.6);width:100%}
+
   .td-root{background:var(--bg0);color:var(--text-primary);font-family:'Libre Baskerville',Georgia,serif;font-weight:400;min-height:100vh;overflow-x:hidden;position:relative}
   .td-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
   .td-main{position:relative;z-index:2}
@@ -304,8 +324,17 @@ const styles = `
   .td-pill:hover{border-color:var(--text-secondary);color:var(--text-primary)}
   .td-pill.active{border-color:var(--amber);color:var(--amber-hi);background:rgba(212,133,58,0.08)}
 
-  .td-calc-btn{background:transparent;border:1px solid var(--amber);color:var(--amber-hi);font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;padding:0.9rem 2rem;cursor:pointer;transition:background 0.3s ease;margin-top:0.5rem;align-self:flex-start}
+  .td-calc-btn{background:transparent;border:1px solid var(--amber);color:var(--amber-hi);font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;padding:0.9rem 2rem;cursor:pointer;transition:background 0.3s ease,border-color 0.3s ease;margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
   .td-calc-btn:hover{background:rgba(212,133,58,0.1)}
+  .td-calc-btn[data-state="loading"],.td-calc-btn[data-state="done"]{cursor:default}
+  .td-calc-btn[data-state="done"]{border-color:var(--green);color:var(--green)}
+  .td-calc-spinner{width:0.85rem;height:0.85rem;border-radius:50%;border:2px solid rgba(240,160,80,0.25);border-top-color:var(--amber-hi);flex-shrink:0;display:none}
+  .td-calc-btn[data-state="loading"] .td-calc-spinner{display:inline-block;animation:td-spin 0.7s linear infinite}
+  .td-calc-check{width:0.85rem;height:0.85rem;flex-shrink:0;display:none;color:var(--green)}
+  .td-calc-btn[data-state="done"] .td-calc-check{display:inline-block}
+  .td-calc-btn[data-state="done"] .td-calc-check path{stroke-dasharray:20;stroke-dashoffset:20;animation:td-check-draw 0.3s ease forwards}
+  @keyframes td-spin{to{transform:rotate(360deg)}}
+  @keyframes td-check-draw{to{stroke-dashoffset:0}}
 
   /* Results */
   .td-result{animation:fadeUp 0.6s ease both}
@@ -398,7 +427,7 @@ const styles = `
   .td-timeline{position:relative;padding-left:1.2rem}
   .td-timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent,var(--border-hi) 10%,var(--border-hi) 90%,transparent)}
 
-  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;display:flex;flex-direction:column;gap:0}
+  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;display:flex;flex-direction:column;gap:0;animation:fadeUp 0.4s ease both}
   .td-titem-inner{padding-bottom:2rem}
 
   .td-tdot{position:absolute;left:-0.32rem;top:0.4rem;width:0.62rem;height:0.62rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0);transition:all 0.2s}
@@ -576,7 +605,17 @@ function Starfield() {
 
     ctx.fillStyle = "#04060d";
     ctx.fillRect(0, 0, W, H);
-    draw();
+    // Respect reduced-motion: paint one static field instead of a
+    // perpetual rAF warp — a full-screen zooming starfield is exactly
+    // the kind of motion that preference exists to suppress.
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      stars.forEach(s => { s.dist = Math.random() * Math.sqrt(CX * CX + CY * CY); });
+      draw();
+      cancelAnimationFrame(raf);
+    } else {
+      draw();
+    }
     window.addEventListener("resize", resize);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
   }, []);
@@ -712,6 +751,25 @@ function LiveTime() {
   return <span className="td-live">{t}</span>;
 }
 
+// Thin amber readout under the banner tracking how far down the page
+// you are — an instrument-panel nod that also just helps orient you
+// on what is otherwise one very long scroll.
+function ScrollProgress() {
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const h = document.documentElement;
+      const scrollable = h.scrollHeight - h.clientHeight;
+      setPct(scrollable > 0 ? Math.min(1, h.scrollTop / scrollable) : 0);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
+  }, []);
+  return <div className="td-progress" style={{ transform: `scaleX(${pct})` }} />;
+}
+
 function Reveal({children}) {
   const ref=useRef(null);
   useEffect(()=>{const el=ref.current;if(!el)return;const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){el.classList.add("visible");obs.unobserve(el);}});},{threshold:0.06});obs.observe(el);return()=>obs.disconnect();},[]);
@@ -734,17 +792,52 @@ function LiveAge({dob,region,flightKey}) {
   );
 }
 
+// Eases a number up from 0 to `value` once, then holds — used for the big
+// reveal numbers so a result lands as a small, satisfying jolt of motion
+// rather than an inert value. Skips straight to the final value under
+// prefers-reduced-motion.
+function CountUp({ value, duration = 650 }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    const dur = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration;
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = dur <= 0 ? 1 : Math.min((now - start) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(value * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return display.toLocaleString();
+}
+
 function DissonanceCalc() {
   const [step, setStep] = useState(1); // 1=inputs, 2=results
   const [dob, setDob] = useState("");
   const [region, setRegion] = useState("uk");
   const [flight, setFlight] = useState("annual");
   const [result, setResult] = useState(null);
+  const [calcState, setCalcState] = useState("idle"); // idle | loading | done
 
   const calculate = useCallback(() => {
+    if (calcState !== "idle") return;
     const r = calcDissonance(dob, region, flight);
-    if (r) { setResult(r); setStep(2); }
-  }, [dob, region, flight]);
+    if (!r) return; // invalid/missing date — leave the field's own validation to say so
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) { setResult(r); setStep(2); return; }
+    setCalcState("loading");
+    window.setTimeout(() => {
+      setCalcState("done");
+      window.setTimeout(() => {
+        setResult(r);
+        setStep(2);
+        setCalcState("idle");
+      }, 260);
+    }, 550);
+  }, [dob, region, flight, calcState]);
 
   const reset = () => { setStep(1); setResult(null); };
 
@@ -805,7 +898,15 @@ function DissonanceCalc() {
               </div>
             </div>
 
-            <button className="td-calc-btn" onClick={calculate}>Show me my dissonance</button>
+            <button className="td-calc-btn" data-state={calcState} onClick={calculate} disabled={calcState !== "idle"} aria-live="polite">
+              <span className="td-calc-spinner" aria-hidden="true"/>
+              <svg className="td-calc-check" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="td-calc-label">
+                {calcState === "loading" ? "Calculating…" : calcState === "done" ? "Done" : "Show me my dissonance"}
+              </span>
+            </button>
           </div>
         )}
 
@@ -823,7 +924,7 @@ function DissonanceCalc() {
               </div>
             ) : (
               <div className="td-stolen-hero">
-                <div className="td-stolen-num">{result.hoursStolen}</div>
+                <div className="td-stolen-num"><CountUp value={result.hoursStolen}/></div>
                 <div className="td-stolen-label">Hours that didn't exist during your lifetime</div>
                 <div className="td-stolen-sub">
                   That is {result.minutesStolen.toLocaleString()} minutes. Each spring since you were born, a clock-hour was skipped entirely. You didn't sleep through it. There was nothing there to sleep through.
@@ -971,8 +1072,8 @@ function CombinedTimeline() {
 
       <Reveal>
         <div className="td-timeline">
-          {filtered.map((item, i) => (
-            <div className="td-titem" key={i}>
+          {filtered.map((item) => (
+            <div className="td-titem" key={item.date + item.label}>
               <div className={`td-tdot ${item.type}${item.severity ? " "+severityClass(item.severity) : ""}`}/>
               <div className="td-titem-inner">
                 <div className={`td-tdate${item.type==="solar"?" solar":""}`}>
@@ -1028,6 +1129,7 @@ export default function App() {
     <div className="td-root">
       <style>{styles}</style>
       <Starfield/>
+      <ScrollProgress/>
       <div className="td-main">
 
         <div className="td-banner">
