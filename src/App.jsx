@@ -241,7 +241,7 @@ const styles = `
   *{box-sizing:border-box;margin:0;padding:0}
 
   /* Colour tokens. The names are this file's own, so no rule below had to
-     change; the values come from trev-ds (ds/css/themes/dissonance.css),
+     change; the values come from obvious (ds/css/themes/dissonance.css),
      which is the same source designedbytrev and the condiment gallery read.
      Secondary text stays #9db5cc, which is WCAG AA on #04060d. */
   :root{
