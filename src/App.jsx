@@ -308,6 +308,9 @@ const styles = `
   .td-clock-wrap{margin-top:2rem;animation:fadeUp 1.2s ease 1.2s both;position:relative}
   .td-clock-caption{font-family:var(--ds-font-mono);font-size:0.65rem;letter-spacing:0.04em;color:var(--text-dim);text-align:center;margin-top:0.6rem}
   .td-scroll-hint{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-dim);animation:fadeUp 1s ease 2s both,pulse 3s ease-in-out 3s infinite;white-space:nowrap}
+  /* The hint is one line on a wide screen and wider than a phone, so
+     below that it wraps rather than running off both edges. */
+  @media(max-width:620px){.td-scroll-hint{white-space:normal;max-width:84vw;text-align:center;line-height:1.6}}
 
   @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:0.45}50%{opacity:1}}
