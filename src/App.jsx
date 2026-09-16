@@ -134,6 +134,24 @@ const FLIGHT_OPTIONS = [
   { key: "heavy",    label: "Very frequently (work travel etc)", hoursPerYear: 120 },
 ];
 
+// ─────────────────────────────────────────────────────────────
+// LEAP SECONDS — every one ever inserted, per IERS Bulletin C.
+// All 27 fall at the end of 30 June or 31 December; day-level
+// precision is enough since date-of-birth is a plain date input.
+// None have been added since 2016, and none will be again once the
+// 2035 phase-out lands (see the Computing Time section below).
+// ─────────────────────────────────────────────────────────────
+const LEAP_SECOND_DATES = [
+  "1972-06-30","1972-12-31","1973-12-31","1974-12-31","1975-12-31","1976-12-31",
+  "1977-12-31","1978-12-31","1979-12-31","1981-06-30","1982-06-30","1983-06-30",
+  "1985-06-30","1987-12-31","1989-12-31","1990-12-31","1992-06-30","1993-06-30",
+  "1994-06-30","1995-12-31","1997-06-30","1998-12-31","2005-12-31","2008-12-31",
+  "2012-06-30","2015-06-30","2016-12-31",
+].map(d => new Date(d + "T00:00:00Z"));
+
+// The moment 32-bit signed Unix time overflows: 03:14:07 UTC, 19 January 2038.
+const Y2038_MOMENT = new Date("2038-01-19T03:14:07Z");
+
 // Relativistic time dilation estimate
 // At cruising altitude ~35,000ft (~10,700m), two effects compete:
 // Gravitational: clocks run faster (altitude above Earth) → +ve aging
@@ -190,6 +208,9 @@ function calcDissonance(dob, region, flightKey) {
   }
   const daysToNextSteal = nextSpring ? Math.ceil((nextSpring - now) / 86400000) : null;
 
+  const leapSecondsLived = LEAP_SECOND_DATES.filter(ls => ls > birth).length;
+  const y2038Age = Math.floor((Y2038_MOMENT - birth) / (365.25 * 86400000));
+
   return {
     years, months, days, hours, minutes, seconds,
     hoursStolen, minutesStolen: hoursStolen * 60,
@@ -198,6 +219,7 @@ function calcDissonance(dob, region, flightKey) {
     nsYounger, totalFlightHours,
     daysToNextSteal, nextSpring,
     regionNoDST: reg && reg.noDST,
+    leapSecondsLived, y2038Age,
   };
 }
 
@@ -217,11 +239,15 @@ const HISTORY_EVENTS = [
   { date: "1972-08-04", label: "Aug 1972 Storm", type: "solar", severity: "G5", desc: "Caused accidental detonation of US naval mines off Vietnam due to magnetic field disruption. Also knocked out AT&T long-lines communications." },
   { date: "1989-03-13", label: "Quebec Blackout", type: "solar", severity: "G5", desc: "Knocked out power across Quebec for 9 hours. 6 million people without electricity. Auroras visible in Texas. Transformer damage took months to repair." },
   { date: "1998-01-01", label: "Leap second disputes begin", type: "history", desc: "Atomic clocks now so precise they outpace Earth's irregular rotation. Leap seconds added intermittently. The internet finds this extremely inconvenient." },
+  { date: "1999-08-21", label: "First GPS week rollover", type: "computing", desc: "GPS's 10-bit week counter hits 1,024 and resets to zero. Some early receivers lose track of the date entirely. Almost nobody outside GPS engineering notices." },
   { date: "2000-07-14", label: "Bastille Day Event", type: "solar", severity: "G5", desc: "X5.7 flare launched a CME directly at Earth. Disrupted satellites, caused radio blackouts, and produced auroras across Europe. Observed by both Voyager spacecraft." },
   { date: "2003-10-29", label: "Halloween Storms", type: "solar", severity: "G5", desc: "17 major flares over two weeks. Two G5 events. The X28 flare on Nov 4 may be the largest ever measured. Power grid fluctuations across Europe and North America." },
+  { date: "2011-10-14", label: "tz database saved by ICANN", type: "computing", desc: "Weeks after a lawsuit over unrelated astrology data forced the timezone database's mailing list and file server offline, ICANN takes over stewardship. The case is dropped the following February." },
   { date: "2012-07-23", label: "Near Miss (Carrington-class)", type: "solar", severity: "G5+", desc: "A CME erupted but missed Earth by 9 days. Scientists estimate it would have caused $2 trillion in damage to global infrastructure if it had hit." },
   { date: "2015-03-17", label: "St Patrick's Day Storm", type: "solar", severity: "G4", desc: "The strongest storm of Solar Cycle 24. Disrupted GPS signals globally and produced auroras visible across the UK and northern US." },
   { date: "2017-09-06", label: "X9.3 Flare", type: "solar", severity: "G3", desc: "Largest solar flare of Solar Cycle 24. Significant radio blackouts across Europe, Africa, and the Atlantic. GPS and navigation affected." },
+  { date: "2019-04-06", label: "Second GPS week rollover", type: "computing", desc: "The 1,024-week counter resets again. A KLM flight is delayed by faulty flight-management software, New York's public wireless network crashes, and Honda dashboards and GoPro drones quietly forget what year it is." },
+  { date: "2022-11-18", label: "Leap seconds voted out", type: "computing", desc: "The General Conference on Weights and Measures resolves to stop inserting leap seconds by 2035, after tech companies lobbied that the correction causes more outages than it prevents." },
   { date: "2024-05-10", label: "Gannon Storm", type: "solar", severity: "G5", desc: "Strongest geomagnetic storm since 2003. Auroras visible across the UK and as far south as Florida. GPS errors disrupted automated farm equipment. Radio blackouts affected aviation." },
 ];
 
@@ -428,6 +454,7 @@ const styles = `
   .td-tdot.solar.g4{border-color:#c9a227}
   .td-tdot.solar.g3{border-color:var(--text-secondary)}
   .td-tdot.history{border-color:var(--border-hi);background:var(--bg0)}
+  .td-tdot.computing{border-color:var(--cold);background:var(--bg2)}
 
   .td-tdate{font-family:var(--ds-font-mono);font-size:0.55rem;letter-spacing:0.12em;color:var(--text-dim);margin-bottom:0.2rem}
   .td-tdate.solar{color:var(--amber)}
@@ -956,6 +983,14 @@ function DissonanceCalc() {
                   <div className="td-metric-lbl">clock-hours skipped by DST</div>
                 </div>
               )}
+              <div className="td-metric">
+                <div className="td-metric-val mist">{result.leapSecondsLived}</div>
+                <div className="td-metric-lbl">leap seconds you've lived through</div>
+              </div>
+              <div className="td-metric">
+                <div className="td-metric-val cold">{result.y2038Age}</div>
+                <div className="td-metric-lbl">your age when 32-bit time overflows</div>
+              </div>
             </div>
 
             <div className="td-insight">
@@ -977,6 +1012,15 @@ function DissonanceCalc() {
               {result.nsYounger === 0 && (
                 <p>
                   You've barely flown, so your relativistic twin — the version of you who never left the ground — is aging at almost exactly your pace. You are, for now, the same person.
+                </p>
+              )}
+              {result.leapSecondsLived > 0 ? (
+                <p>
+                  You've also lived through <strong className="mist">{result.leapSecondsLived} leap second{result.leapSecondsLived === 1 ? "" : "s"}</strong> — extra ticks inserted to keep atomic clocks in step with the Earth's slightly irregular spin. None have been added since 2016, and by 2035 the world plans to stop adding them altogether. You will likely be <strong className="cold">{result.y2038Age}</strong> when a much larger clock bug arrives: the moment 32-bit Unix time runs out of numbers, at 03:14:07 UTC on 19 January 2038.
+                </p>
+              ) : (
+                <p>
+                  No leap second has been inserted since before you were born, and the world has now voted to retire them by 2035 — you may go your whole life without one. A bigger clock bug is still coming for you regardless: you'll be roughly <strong className="cold">{result.y2038Age}</strong> when 32-bit Unix time runs out of numbers, at 03:14:07 UTC on 19 January 2038.
                 </p>
               )}
             </div>
@@ -1009,6 +1053,7 @@ function CombinedTimeline() {
     if (filter === "all") return true;
     if (filter === "solar") return e.type === "solar";
     if (filter === "history") return e.type === "history";
+    if (filter === "computing") return e.type === "computing";
     return true;
   });
 
@@ -1023,12 +1068,12 @@ function CombinedTimeline() {
     <section className="td-section">
       <Reveal>
         <div className="td-section-header">
-          <span className="td-section-num">05 / Timeline</span>
+          <span className="td-section-num">06 / Timeline</span>
           <div className="td-section-line"/>
         </div>
         <h2 className="td-section-title">History of <em>Disrupted Time</em></h2>
         <p className="td-section-intro">
-          Every event below changed how time was experienced — sometimes by policy, sometimes by physics, sometimes by the sun. Solar storms are rated on the NOAA G-scale (G1 minor to G5 extreme).
+          Every event below changed how time was experienced — sometimes by policy, sometimes by physics, sometimes by the sun, sometimes by a 32-bit integer running out of room. Solar storms are rated on the NOAA G-scale (G1 minor to G5 extreme).
         </p>
 
         {/* Legend */}
@@ -1049,13 +1094,17 @@ function CombinedTimeline() {
             <div className="td-legend-dot" style={{borderColor:"#ff4444",background:"#0d1526",boxShadow:"0 0 5px rgba(255,68,68,0.5)"}}/>
             Carrington-class
           </div>
+          <div className="td-legend-item">
+            <div className="td-legend-dot" style={{borderColor:"#5aabcf",background:"#0d1526"}}/>
+            Computing time bug
+          </div>
         </div>
 
         {/* Filter */}
         <div className="td-filter">
-          {["all","solar","history"].map(f=>(
+          {["all","solar","history","computing"].map(f=>(
             <button key={f} className={`td-filter-btn${filter===f?" active":""}`} onClick={()=>setFilter(f)}>
-              {f === "all" ? "All events" : f === "solar" ? "Solar storms only" : "Historical only"}
+              {f === "all" ? "All events" : f === "solar" ? "Solar storms only" : f === "history" ? "Historical only" : "Computing only"}
             </button>
           ))}
         </div>
@@ -1110,6 +1159,13 @@ const solarCards = [
   {tag:"A clock you didn't know you had",title:"Your oven runs on the power grid",body:"Many appliances keep time by counting the oscillations of the AC power supply — 50 cycles per second in the UK. When solar activity disrupts the grid, the frequency drifts. Ovens, microwaves, and older alarm clocks quietly accumulate minutes of error.",link:"https://www.newscientist.com/article/2239540-slow-clocks-why-your-oven-and-other-appliances-may-be-running-behind/",linkLabel:"New Scientist"},
   {tag:"The one that almost wasn't",title:"2012: a near-miss nobody felt",body:"A Carrington-class CME erupted in July 2012. It missed Earth by nine days. Scientists later modelled what would have happened if it had hit — months-long GPS failure, power outages across continents, satellite damage costing trillions to repair.",link:"https://science.nasa.gov/science-research/heliophysics/the-perfect-solar-superstorm-the-1859-carrington-event/",linkLabel:"NASA"},
   {tag:"May 2024",title:"The one you might have seen",body:"A G5 storm — the strongest in over two decades — lit up the sky across the UK and as far south as Florida. While people photographed auroras, automated farm tractors were silently drifting off their GPS-guided paths, and aviation radio briefly failed.",link:"https://www.bbc.co.uk/news/science-environment-69012972",linkLabel:"BBC News"},
+];
+
+const computingCards = [
+  {tag:"Gone by 2035",title:"The world voted to stop correcting for the Earth",body:"In November 2022 the world's metrologists resolved to stop inserting leap seconds by 2035. Meta and Google had lobbied hard for it, citing a 2012 leap second that knocked Reddit offline for half an hour and a 2017 one that caused Cloudflare's code to hand a negative number to a function that panicked when it saw one. After 27 leap seconds since 1972, the clock will simply be allowed to drift from the planet it was built to track.",link:"https://www.bipm.org/en/-/2022-11-18-cgpm-resolutions",linkLabel:"BIPM Resolution 4"},
+  {tag:"03:14:07 UTC, 19 January 2038",title:"A 32-bit number that runs out",body:"Countless systems still store time as seconds since 1970 in a 32-bit signed integer. That number tops out at 2,147,483,647. A second later it goes negative, and the clock reads 1901. You don't have to wait for 2038 to see the shape of this bug — in January 2022 a differently-sized version of it froze Microsoft Exchange's mail queues worldwide on New Year's Day.",link:"https://www.theregister.com/software/2022/01/03/microsoft-patches-y2k-like-bug-in-on-prem-exchange-server/1513135",linkLabel:"The Register"},
+  {tag:"Every 19.6 years",title:"GPS forgets what week it is",body:"GPS satellites count weeks in a 10-bit number that resets to zero every 1,024 weeks. It happened in 1999, and again in April 2019 — when flight-management software delayed a KLM jet, New York's public wireless network fell over, and GoPro drones and Honda dashboards quietly forgot what year it was. The next rollover lands in November 2038, within months of the 32-bit clock bug above. Neither date was chosen to coincide with the other. They just do.",link:"https://en.wikipedia.org/wiki/GPS_week_number_rollover",linkLabel:"Wikipedia"},
+  {tag:"2011–2012",title:"A lawsuit almost deleted everyone's timezone",body:"The tz database — the file that tells your phone when Berlin's clocks change — is public-domain infrastructure maintained by volunteers. In 2011 a company called Astrolabe sued its maintainers over unrelated astrology tables that had once been mentioned on its mailing list. The list and file server were pulled down within a week out of legal caution. The database now underpins ICANN-backed stewardship instead of one volunteer's FTP server, and the case was dropped four months later.",link:"https://www.eff.org/cases/astrolabe-v-olson",linkLabel:"EFF"},
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -1228,6 +1284,31 @@ export default function App() {
           <Reveal>
             <div className="td-cards">
               {solarCards.map((c,i)=>(
+                <div className="td-card" key={i}>
+                  <span className="td-card-tag">{c.tag}</span>
+                  <h3 className="td-card-title">{c.title}</h3>
+                  <p className="td-card-body">{c.body}</p>
+                  <a className="td-card-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </section>
+
+        <div className="td-divider"/>
+
+        <section className="td-section">
+          <Reveal>
+            <div className="td-section-header">
+              <span className="td-section-num">05 / Computing Time</span>
+              <div className="td-section-line"/>
+            </div>
+            <h2 className="td-section-title">The Clock Was Never <em>Built to Last</em></h2>
+            <p className="td-section-intro">Every layer above — policy, physics, the sun — assumes the underlying clock just works. It doesn't. The way computers represent time is a set of engineering compromises made decades ago, several of which are already unwinding on a schedule.</p>
+          </Reveal>
+          <Reveal>
+            <div className="td-cards">
+              {computingCards.map((c,i)=>(
                 <div className="td-card" key={i}>
                   <span className="td-card-tag">{c.tag}</span>
                   <h3 className="td-card-title">{c.title}</h3>
