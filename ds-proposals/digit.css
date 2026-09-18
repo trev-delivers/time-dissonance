@@ -1,0 +1,60 @@
+/* t-digit — transitions.dev's number pop-in, themed.
+ *
+ * Proposed for trev-delivers/obvious as src/components/digit.css.
+ * Source recipe: transitions/number-pop-in.md (free tier).
+ *
+ * A figure that arrives per-character with blur and a short overshoot, for
+ * values that land rather than values that are simply present — a computed
+ * result, a total, a balance. The recipe's own easing is a bespoke
+ * overshoot curve; the system already has one in --ds-ease-spring, so that
+ * is what this uses and what a theme retunes.
+ *
+ * --digit-distance and --digit-blur stay literal: the system has no
+ * distance or blur scale to put 8px and 2px on, and inventing one for two
+ * values would be worse than leaving them as the recipe's tuning.
+ */
+
+.t-digit-group{
+  display:inline-flex;
+  align-items:baseline;
+  --digit-dur:var(--ds-duration-slow);
+  --digit-stagger:var(--ds-duration-instant);
+  --digit-distance:8px;
+  --digit-blur:2px;
+  --digit-ease:var(--ds-ease-spring);
+  --digit-dir-x:0;
+  --digit-dir-y:1;
+}
+
+.t-digit{
+  display:inline-block;
+  will-change:transform,opacity,filter;
+}
+
+.t-digit-group.is-animating .t-digit{
+  animation:t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+}
+
+/* The trailing characters ride in behind the leading ones so a decimal or
+   a unit suffix feels attached to the number rather than part of it. */
+.t-digit-group.is-animating .t-digit[data-stagger="1"]{
+  animation-delay:var(--digit-stagger);
+}
+.t-digit-group.is-animating .t-digit[data-stagger="2"]{
+  animation-delay:calc(var(--digit-stagger) * 2);
+}
+
+@keyframes t-digit-pop-in{
+  0%{
+    transform:translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y)));
+    opacity:0;
+    filter:blur(var(--digit-blur));
+  }
+  100%{transform:translate(0,0);opacity:1;filter:blur(0)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .t-digit-group .t-digit{animation:none!important}
+}
