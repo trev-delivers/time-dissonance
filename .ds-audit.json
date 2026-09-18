@@ -1,0 +1,4 @@
+{
+  "ignore": ["ds-proposals/"],
+  "note": "ds-proposals/ is staged upstream work, not app styling — its literal colours are the buggy values it quotes back in comments. The folder is meant to empty out as obvious lands the fixes, so its findings would be noise either way. Nothing else is excused. What still shows in src/ and index.html is one of three things, all invisible to a regex: a hex quoted inside a comment to say where a value came from; index.html's theme-color, which is a meta tag and cannot read a custom property; and the starfield's canvas strings, which interpolate channels read out of --star-cold / --star-warm / --ds-color-bg at mount. The canvas ones are adoption rather than avoidance — reading a token into ctx.fillStyle is the only way to get one there at all."
+}

@@ -89,6 +89,28 @@ Every claim on the site links to its source inline, but the ones behind the newe
 
 ---
 
+## Design system
+
+The look is not this repo's. Colour, type, spacing, motion and the interaction
+components all come from [obvious](https://github.com/trev-delivers/obvious),
+vendored into `ds/` by `scripts/sync-ds.mjs` and stamped in `ds/.version`.
+Nothing in `ds/` is edited here — the sync deletes and re-copies the folder, so
+edits there last until the next pull and no longer.
+
+- `npm run ds:check` — fail if the vendored copy has drifted from upstream
+- `npm run ds:audit` — what the app uses, and what went around the system
+- `npm run ds:audit:ci` — the same, against a bypass budget
+
+`ds-proposals/` is design system work found while building this app that
+belongs upstream rather than here — fixes to broken components and two new
+ones adapted from [transitions.dev](https://transitions.dev) recipes. Each
+file is written to be lifted into `obvious` and deleted from here once it
+lands; `ds-proposals/README.md` has the detail and the promotion steps.
+
+`transitions/` is the vendored free transitions.dev catalogue
+(`npx transitions-dev add --free`), kept in-repo so every component in
+`ds-proposals/` can point at the recipe it came from.
+
 ## Tech
 
 React + Vite, no backend and no external data dependencies — every calculation runs client-side, in your browser.

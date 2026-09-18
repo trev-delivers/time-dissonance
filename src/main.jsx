@@ -7,6 +7,13 @@ import '../ds/css/primitives.css'
 import '../ds/css/themes/dissonance.css'
 import '../ds/css/base.css'
 import '../ds/css/components.css'
+/* Design system work that has not landed upstream yet — see
+   ds-proposals/README.md. Loaded after the vendored components so the fixes
+   patch them, and before the app's own styles so the app can still win.
+   Each of these should be deleted, not kept, once obvious ships it. */
+import '../ds-proposals/fixes.css'
+import '../ds-proposals/tilt.css'
+import '../ds-proposals/digit.css'
 import './index.css'
 import App from './App.jsx'
 
