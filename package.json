@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "ds:audit": "node scripts/audit-ds.mjs"
+    "ds:audit": "node scripts/audit-ds.mjs",
+    "ds:audit:ci": "node scripts/audit-ds.mjs --max 15",
+    "ds:check": "node scripts/sync-ds.mjs --check"
   },
   "dependencies": {
     "react": "^19.2.4",

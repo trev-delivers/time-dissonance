@@ -173,7 +173,13 @@ function audit(root) {
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
 const detail = args.includes("--detail");
-const roots = args.filter((a) => !a.startsWith("--"));
+/* --max takes a value, and a bare number does not look like a flag, so a
+   naive filter hands it to audit() as a directory to scan. `--max 60` then
+   reported on a folder called "60" — no files, no tokens, zero bypasses,
+   comfortably within budget. The one invocation that exists to fail a build
+   was the one that could never fail. */
+const maxAt = args.indexOf("--max");
+const roots = args.filter((a, i) => !a.startsWith("--") && i !== maxAt + 1);
 const results = (roots.length ? roots : [process.cwd()]).map(audit);
 
 if (asJson) {
@@ -223,7 +229,6 @@ console.log("");
    literal fills and a one-off texture is a one-off decision — but a number
    that is allowed to climb without anyone noticing is how a design system
    quietly stops being one. Set it just above where you are and ratchet down. */
-const maxAt = args.indexOf("--max");
 if (maxAt !== -1) {
   const budget = Number(args[maxAt + 1]);
   if (Number.isNaN(budget)) {

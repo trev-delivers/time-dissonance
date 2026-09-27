@@ -4,7 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#3a2410" />
+    <!-- The browser chrome should match the page it frames. This was #3a2410,
+         a warm brown left over from a sibling site, against a #04060d navy —
+         visibly wrong on any phone that tints its address bar. The value is
+         --ds-color-bg from ds/css/themes/dissonance.css; a meta tag cannot
+         read a custom property, so this is the one place the hex is written
+         out and it is worth a comment saying where it came from. -->
+    <meta name="theme-color" content="#04060d" />
     <title>Time Dissonance — a meditation on slipping hours</title>
     <meta name="description" content="How much of your time has quietly gone missing — to daylight saving, to relativity, to the sun? A calculator and a field guide to the hours that policy, physics, and space weather have taken from you." />
     <meta property="og:type" content="website" />

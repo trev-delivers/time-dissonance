@@ -251,12 +251,17 @@ const HISTORY_EVENTS = [
   { date: "2024-05-10", label: "Gannon Storm", type: "solar", severity: "G5", desc: "Strongest geomagnetic storm since 2003. Auroras visible across the UK and as far south as Florida. GPS errors disrupted automated farm equipment. Radio blackouts affected aviation." },
 ];
 
-const SEVERITY_COLORS = {
-  "G5+": "#ff4444",
-  "G5": "#d4853a",
-  "G4": "#c9a227",
-  "G3": "#6b8cb0",
-  "G2": "#2e4060",
+/* The G-scale is NOAA's, and a bare "G4" means nothing to most readers, so
+   each rating carries what it actually is. The colours used to live here as
+   five hexes read into three inline styles per row — a palette of the
+   timeline's own that no theme could reach. They are classes now; see
+   .td-sev in the stylesheet. */
+const SEVERITY = {
+  "G5+": { cls: "g5plus", note: "Carrington-class — beyond the top of the scale" },
+  "G5":  { cls: "g5",     note: "Extreme — grid collapse and satellite damage" },
+  "G4":  { cls: "g4",     note: "Severe — voltage control problems, GPS degraded" },
+  "G3":  { cls: "g3",     note: "Strong — surface charging, navigation errors" },
+  "G2":  { cls: "g2",     note: "Moderate — high-latitude power systems affected" },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -283,6 +288,19 @@ const styles = `
     --amber-hi:var(--ds-color-accent-hover);
     --cold:var(--ds-color-info);
     --green:var(--ds-color-success);
+
+    /* The starfield is app art rather than system colour, but it should
+       still move when the theme does. Both are read out of here by the
+       canvas at mount — see Starfield — so the warp is lit by the same
+       lamp as everything else instead of two hexes nobody would think to
+       change. */
+    --star-cold:color-mix(in srgb,var(--ds-color-text) 70%,var(--ds-color-info));
+    /* The accent on its own is a more saturated orange than the field
+       wants — the occasional warm star should read as gold, not as a flare.
+       Mixed back toward the text colour it lands within a couple of points
+       of the 220,185,130 this used to hard-code, and still moves if the
+       theme's lamp does. */
+    --star-warm:color-mix(in srgb,var(--ds-color-accent-hover) 70%,var(--ds-color-text));
   }
 
   /* Reduced motion, focus rings, tap highlight and selection all come from
@@ -291,29 +309,58 @@ const styles = `
      entrances lean on delay, so killing only the duration left someone who
      asked for less motion waiting out an empty screen anyway. */
 
-  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;box-shadow:0 0 6px rgba(240,160,80,0.6);width:100%}
+  /* One entrance for the two things that arrive on a state change rather
+     than on scroll — the calculator's result and a timeline row. The system
+     covers scroll reveals (t-reveal) and staggered lines (t-stagger); a
+     plain mount fade is the app's own, so it is defined once here instead
+     of five times inline. */
+  @keyframes td-enter{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:0.45}50%{opacity:1}}
+
+  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;box-shadow:0 0 6px color-mix(in srgb,var(--amber-hi) 60%,transparent);width:100%}
 
   .td-root{background:var(--bg0);color:var(--text-primary);font-family:var(--ds-font-display);font-weight:400;min-height:100vh;overflow-x:hidden;position:relative}
   .td-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
   .td-main{position:relative;z-index:2}
 
-  .td-banner{background:rgba(8,14,26,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0.6rem 1.4rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;font-family:var(--ds-font-mono);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-dim)}
+  .td-banner{background:color-mix(in srgb,var(--bg1) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0.6rem 1.4rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;font-family:var(--ds-font-mono);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-dim)}
   .td-live{color:var(--amber-hi)}
 
-  .td-hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 1.5rem 5rem;position:relative}
-  .td-eyebrow{font-family:var(--ds-font-mono);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-secondary);margin-bottom:2rem;animation:fadeUp 1.2s ease 0.3s both}
-  .td-title{font-size:clamp(3rem,16vw,7rem);font-weight:400;line-height:0.95;letter-spacing:-0.02em;color:var(--text-primary);animation:fadeUp 1.2s ease 0.6s both}
+  /* ── HERO ──
+     The five lines are .t-stagger from the design system rather than five
+     hand-written fadeUp delays. The component's own cadence is 40ms, which
+     is right for a headline and a subtitle arriving together and wrong for
+     this — the hero is meant to unfold, not appear. --stagger-stagger is
+     the knob for exactly that, so the pacing is a variable here instead of
+     a keyframe per element. */
+  .td-hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 1.5rem 5rem;position:relative;--stagger-stagger:300ms}
+  .td-hero-lines{display:flex;flex-direction:column;align-items:center}
+  .td-eyebrow{font-family:var(--ds-font-mono);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-secondary);margin-bottom:2rem}
+  .td-title{font-size:clamp(3rem,16vw,7rem);font-weight:400;line-height:0.95;letter-spacing:-0.02em;color:var(--text-primary)}
   .td-title-em{font-style:italic;color:var(--amber-hi);display:block}
-  .td-sub{font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:500px;line-height:1.8;margin-top:1.8rem;animation:fadeUp 1.2s ease 0.9s both;font-style:italic}
-  .td-clock-wrap{margin-top:2rem;animation:fadeUp 1.2s ease 1.2s both;position:relative}
+  .td-sub{font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:500px;line-height:1.8;margin-top:1.8rem;font-style:italic}
+  .td-clock-wrap{margin-top:2rem;position:relative}
   .td-clock-caption{font-family:var(--ds-font-mono);font-size:0.65rem;letter-spacing:0.04em;color:var(--text-dim);text-align:center;margin-top:0.6rem}
-  .td-scroll-hint{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-dim);animation:fadeUp 1s ease 2s both,pulse 3s ease-in-out 3s infinite;white-space:nowrap}
+  /* The constellation clock was thirteen rgba() literals inlined onto SVG
+     attributes — its own private palette, invisible to the theme. SVG
+     presentation attributes can't take var(), so the colours move here and
+     the elements carry classes instead. Star brightness stays an attribute,
+     because it varies per star and is opacity rather than colour. */
+  .td-clock{overflow:visible;filter:drop-shadow(0 0 30px color-mix(in srgb,var(--cold) 12%,transparent))}
+  .td-clock-rim{fill:none;stroke:color-mix(in srgb,var(--border-hi) 25%,transparent);stroke-width:0.5;stroke-dasharray:2 6}
+  .td-clock-const{stroke:color-mix(in srgb,var(--text-dim) 12%,transparent);stroke-width:0.6}
+  .td-clock-hour{stroke:color-mix(in srgb,var(--text-primary) 35%,transparent);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:3 5}
+  .td-clock-min{stroke:color-mix(in srgb,var(--amber-hi) 45%,transparent);stroke-width:0.9;stroke-linecap:round;stroke-dasharray:1 4}
+  .td-clock-star{fill:var(--star-cold)}
+  .td-clock-sec{fill:var(--amber-hi);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--amber-hi) 80%,transparent))}
+  .td-clock-halo{fill:none;stroke:color-mix(in srgb,var(--amber-hi) 25%,transparent);stroke-width:0.8}
+  .td-clock-centre{fill:color-mix(in srgb,var(--text-primary) 90%,transparent);filter:drop-shadow(0 0 5px var(--star-cold))}
+  /* The hint sits outside the stagger block so it can hold its own pulse
+     without the entrance transition fighting the animation. */
+  .td-scroll-hint{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-dim);animation:pulse 3s ease-in-out 3s infinite;white-space:nowrap}
   /* The hint is one line on a wide screen and wider than a phone, so
      below that it wraps rather than running off both edges. */
   @media(max-width:620px){.td-scroll-hint{white-space:normal;max-width:84vw;text-align:center;line-height:1.6}}
-
-  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes pulse{0%,100%{opacity:0.45}50%{opacity:1}}
 
   /* ── CALCULATOR ── */
   .td-calc-wrap{background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
@@ -334,12 +381,14 @@ const styles = `
   .td-input-group{display:flex;flex-direction:column;gap:0.4rem;flex:1;min-width:160px}
   /* The fields are .t-input from ds/css/components/field.css — the same
      assembly as the password gate on designedbytrev. The well, the
-     hairline, the focus tint and the chevron all come from there, so what
-     is left here is the width and the one thing the shared rules can't
-     know: that this app is dark, so the date picker's own glyph needs
-     inverting or it renders black on near-black. */
+     hairline, the focus tint, the chevron, the error shake and the message
+     that fades in under it all come from there, so what is left here is the
+     width and the one thing the shared rules can't know: that this app is
+     dark, so the date picker's own glyph needs inverting or it renders
+     black on near-black. */
   .td-input-group .t-input{width:100%;--t-input-picker-filter:invert(0.6)}
   .td-input-group select{color-scheme:dark}
+  .td-error-msg{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em}
 
   .td-pills{display:flex;flex-wrap:wrap;gap:0.5rem}
   /* .t-chip carries the shape, the hover and the on state. These options
@@ -347,25 +396,28 @@ const styles = `
      centring like a nav chip would. */
   .td-pill{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;line-height:1.4;text-align:left;justify-content:flex-start;--t-chip-pad:0.55rem 0.85rem;--t-chip-radius:var(--ds-radius-sm)}
 
-  .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-mono);font-size:0.8rem;letter-spacing:0.04em;padding:0.9rem 2rem;cursor:pointer;transition:background 0.3s ease,border-color 0.3s ease;margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
+  /* The button's loading and done states are .t-check-badge — the same
+     spinner-to-tick the portfolio's gate uses. It ships at 22px for a
+     48px field; this is a 0.8rem mono button, so it comes down to 15px
+     through the size variable rather than three overrides fighting the
+     flex shorthand. The tick stays green and white on purpose: the system
+     holds it out of theming so it keeps reading as a tick. */
+  .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-mono);font-size:0.8rem;letter-spacing:0.04em;padding:0.9rem 2rem;cursor:pointer;transition:background var(--ds-duration-base) ease,border-color var(--ds-duration-base) ease,color var(--ds-duration-base) ease;margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
   .td-calc-btn:hover{background:color-mix(in srgb,var(--ds-color-accent) 12%,transparent)}
   .td-calc-btn[data-state="loading"],.td-calc-btn[data-state="done"]{cursor:default}
   .td-calc-btn[data-state="done"]{border-color:var(--green);color:var(--green)}
-  .td-calc-spinner{width:0.85rem;height:0.85rem;border-radius:50%;border:2px solid rgba(240,160,80,0.25);border-top-color:var(--amber-hi);flex-shrink:0;display:none}
-  .td-calc-btn[data-state="loading"] .td-calc-spinner{display:inline-block;animation:td-spin 0.7s linear infinite}
-  .td-calc-check{width:0.85rem;height:0.85rem;flex-shrink:0;display:none;color:var(--green)}
-  .td-calc-btn[data-state="done"] .td-calc-check{display:inline-block}
-  .td-calc-btn[data-state="done"] .td-calc-check path{stroke-dasharray:20;stroke-dashoffset:20;animation:td-check-draw 0.3s ease forwards}
-  @keyframes td-spin{to{transform:rotate(360deg)}}
-  @keyframes td-check-draw{to{stroke-dashoffset:0}}
+  .td-calc-btn .t-check-badge{--check-size:15px;--check-ring-w:2px}
+  /* .t-think shimmers the label while the sum runs. Its sizer holds the
+     width of the longest state so the button doesn't resize mid-transition. */
+  .td-calc-btn .t-think{font:inherit;letter-spacing:inherit}
 
   /* Results */
-  .td-result{animation:fadeUp 0.6s ease both}
+  .td-result{animation:td-enter var(--ds-duration-slower) var(--ds-ease-out) both}
   .td-age-display{font-size:clamp(0.82rem,2.2vw,0.9rem);color:var(--text-secondary);font-family:var(--ds-font-mono);letter-spacing:0.04em;margin-bottom:2rem;line-height:2.4}
   .td-age-display strong{color:var(--text-primary);font-weight:400}
   .td-age-display .amber{color:var(--amber-hi)}
 
-  .td-stolen-hero{background:linear-gradient(135deg,var(--bg2),rgba(212,133,58,0.05));border:1px solid var(--amber);padding:2rem;margin-bottom:1.5px;text-align:center}
+  .td-stolen-hero{background:linear-gradient(135deg,var(--bg2),color-mix(in srgb,var(--amber) 5%,transparent));border:1px solid var(--amber);padding:2rem;margin-bottom:1.5px;text-align:center}
   .td-stolen-num{font-size:clamp(4rem,18vw,8rem);font-weight:400;color:var(--amber-hi);line-height:1;letter-spacing:-0.03em}
   .td-stolen-label{font-family:var(--ds-font-mono);font-size:0.75rem;letter-spacing:0.04em;color:var(--text-secondary);margin-top:0.5rem}
   .td-stolen-sub{font-size:clamp(1.05rem,3.5vw,1.25rem);color:var(--text-secondary);margin-top:1rem;line-height:1.7;font-style:italic}
@@ -377,6 +429,10 @@ const styles = `
   .td-metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5px;margin-bottom:1.5px}
   @media(min-width:600px){.td-metric-grid{grid-template-columns:repeat(4,1fr)}}
   .td-metric{background:var(--bg2);border:1px solid var(--border);padding:1.2rem;text-align:center}
+  /* .t-digit-group pops each character of the figure in with a short
+     overshoot — see ds-proposals/digit.css. The metrics are the right
+     place for it: eight small numbers arriving at once would be noise at
+     the hero's scale and read as a result landing at this one. */
   .td-metric-val{font-size:clamp(1.1rem,4vw,1.8rem);font-weight:400;color:var(--text-primary);letter-spacing:-0.02em;line-height:1}
   .td-metric-val.amber{color:var(--amber-hi)}
   .td-metric-val.cold{color:var(--cold)}
@@ -392,12 +448,12 @@ const styles = `
   .td-insight .cold{color:var(--cold)}
   .td-insight .green{color:var(--green)}
 
-  .td-next-steal{background:linear-gradient(135deg,var(--bg2),rgba(139,58,42,0.06));border:1px solid var(--border-hi);padding:1.2rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+  .td-next-steal{background:linear-gradient(135deg,var(--bg2),color-mix(in srgb,var(--amber) 6%,transparent));border:1px solid var(--border-hi);padding:1.2rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
   .td-next-label{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;color:var(--text-secondary)}
   .td-next-val{font-size:1.3rem;color:var(--text-primary);margin-top:0.2rem}
   .td-next-days{font-family:var(--ds-font-mono);font-size:0.75rem;color:var(--amber);letter-spacing:0.04em;text-align:right}
 
-  .td-reset-btn{background:none;border:none;color:var(--text-dim);font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;cursor:pointer;margin-top:1.5rem;padding:0;transition:color 0.3s}
+  .td-reset-btn{background:none;border:none;color:var(--text-dim);font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;cursor:pointer;margin-top:1.5rem;padding:0;transition:color var(--ds-duration-base) ease}
   .td-reset-btn:hover{color:var(--text-secondary)}
 
   /* STATS */
@@ -424,27 +480,36 @@ const styles = `
   .td-dst-arrow span{font-family:var(--ds-font-mono);font-size:0.64rem;letter-spacing:0.04em;color:var(--text-dim)}
   .td-dst-arrow strong{color:var(--amber-hi);font-weight:400;font-size:0.75rem;font-family:var(--ds-font-mono)}
 
-  /* CARDS */
+  /* CARDS
+     Each card is wrapped in .t-tilt / .t-tilt-card — see
+     ds-proposals/tilt.css. The recipe's peak lean is 14 degrees, which on
+     a page about slipping time reads as a toy; 5 is enough to register as
+     a surface catching the light. The glare is the theme's amber rather
+     than the recipe's white, so it is the same lamp lighting everything
+     else, at a third of the recipe's strength because a bright sweep over
+     body copy makes it unreadable for the length of the sweep. */
   .td-cards{display:grid;grid-template-columns:1fr;gap:1.5px}
   @media(min-width:600px){.td-cards{grid-template-columns:1fr 1fr}}
-  .td-card{background:linear-gradient(135deg,var(--bg1),var(--bg2));border:1px solid var(--border);padding:1.8rem}
+  .td-tilt{display:flex;--tilt-glare-color:var(--amber-hi);--tilt-glare-opacity:0.11;--tilt-touch:auto}
+  .td-tilt>.t-tilt-card{flex:1;display:flex}
+  .td-card{background:linear-gradient(135deg,var(--bg1),var(--bg2));border:1px solid var(--border);padding:1.8rem;flex:1}
   .td-card-tag{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--amber);margin-bottom:0.6rem;display:block}
   .td-card-title{font-size:clamp(1.1rem,4vw,1.35rem);font-weight:400;color:var(--text-primary);margin-bottom:0.75rem;line-height:1.3}
   .td-card-body{font-size:clamp(0.95rem,2.8vw,1.02rem);line-height:1.8;color:var(--text-secondary)}
   /* .t-link supplies the colour, the hairline and the hover — the same
      one the LinkedIn link on designedbytrev uses. */
-  .td-card-link{display:inline-flex;align-items:center;gap:0.3rem;margin-top:1rem;font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em}
+  .td-card-link{display:inline-flex;align-items:center;gap:0.3rem;margin-top:1rem;font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;position:relative;z-index:1}
 
   /* REL */
   .td-rel-grid{display:grid;grid-template-columns:1fr;gap:1.5px}
   @media(min-width:600px){.td-rel-grid{grid-template-columns:1fr 1fr}}
-  .td-rel-card{background:var(--bg1);border:1px solid var(--border);padding:1.8rem;position:relative}
-  .td-rel-card.hl{border-color:var(--amber);background:linear-gradient(135deg,var(--bg1),rgba(212,133,58,0.04))}
+  .td-rel-card{background:var(--bg1);border:1px solid var(--border);padding:1.8rem;position:relative;flex:1}
+  .td-rel-card.hl{border-color:var(--amber);background:linear-gradient(135deg,var(--bg1),color-mix(in srgb,var(--amber) 4%,transparent))}
   .td-rel-num{font-size:4rem;font-weight:400;color:var(--border);line-height:1;position:absolute;top:0.5rem;right:1rem;pointer-events:none}
 
   /* QUOTE */
   .td-quote{padding:clamp(3rem,6vh,5rem) clamp(1.2rem,5vw,4rem);max-width:800px;margin:0 auto;text-align:center;position:relative}
-  .td-quote-mark{font-size:8rem;line-height:0.5;color:var(--border);font-family:'Libre Baskerville',serif;position:absolute;top:2rem;left:0.5rem;pointer-events:none}
+  .td-quote-mark{font-size:8rem;line-height:0.5;color:var(--border);font-family:var(--ds-font-display);position:absolute;top:2rem;left:0.5rem;pointer-events:none}
   .td-quote p{font-size:clamp(1.25rem,4.5vw,2.1rem);line-height:1.55;color:var(--text-primary);font-style:italic;position:relative;z-index:1}
   .td-quote cite{display:block;margin-top:1.2rem;font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-secondary);font-style:normal}
 
@@ -452,14 +517,26 @@ const styles = `
   .td-timeline{position:relative;padding-left:1.2rem}
   .td-timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent,var(--border-hi) 10%,var(--border-hi) 90%,transparent)}
 
-  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;display:flex;flex-direction:column;gap:0;animation:fadeUp 0.4s ease both}
+  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;display:flex;flex-direction:column;gap:0;animation:td-enter var(--ds-duration-slow) var(--ds-ease-out) both}
   .td-titem-inner{padding-bottom:2rem}
 
-  .td-tdot{position:absolute;left:-0.32rem;top:0.4rem;width:0.62rem;height:0.62rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0);transition:all 0.2s}
+  /* One severity scale, declared once. It used to be a JS object of five
+     hexes read into three inline styles per row — which meant the timeline
+     had its own palette that no theme could reach and the audit counted
+     fifteen times over. --sev carries the colour and the fill, text and
+     border are mixed off it, so a row is a class and nothing else. */
+  .td-sev{--sev:var(--border-hi);font-family:var(--ds-font-mono);font-size:0.64rem;letter-spacing:0.04em;padding:0.15rem 0.4rem;border-radius:var(--ds-radius-sm);font-weight:400;color:var(--sev);background:color-mix(in srgb,var(--sev) 13%,transparent);border:1px solid color-mix(in srgb,var(--sev) 27%,transparent)}
+  .td-sev--g5plus{--sev:var(--ds-color-danger)}
+  .td-sev--g5{--sev:var(--amber)}
+  .td-sev--g4{--sev:var(--ds-color-warning)}
+  .td-sev--g3{--sev:var(--cold)}
+  .td-sev--g2{--sev:var(--border-hi)}
+
+  .td-tdot{position:absolute;left:-0.32rem;top:0.4rem;width:0.62rem;height:0.62rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0);transition:border-color var(--ds-duration-fast) ease,box-shadow var(--ds-duration-fast) ease}
   .td-tdot.solar{border-color:var(--amber);background:var(--bg2)}
-  .td-tdot.solar.g5plus{border-color:#ff5555;box-shadow:0 0 6px rgba(255,85,85,0.4)}
-  .td-tdot.solar.g5{border-color:var(--amber);box-shadow:0 0 6px rgba(212,133,58,0.3)}
-  .td-tdot.solar.g4{border-color:#c9a227}
+  .td-tdot.solar.g5plus{border-color:var(--ds-color-danger);box-shadow:0 0 6px color-mix(in srgb,var(--ds-color-danger) 40%,transparent)}
+  .td-tdot.solar.g5{border-color:var(--amber);box-shadow:0 0 6px color-mix(in srgb,var(--amber) 30%,transparent)}
+  .td-tdot.solar.g4{border-color:var(--ds-color-warning)}
   .td-tdot.solar.g3{border-color:var(--text-secondary)}
   .td-tdot.history{border-color:var(--border-hi);background:var(--bg0)}
   .td-tdot.computing{border-color:var(--cold);background:var(--bg2)}
@@ -469,13 +546,22 @@ const styles = `
 
   .td-trow{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem}
   .td-ttitle{font-size:clamp(1rem,3.2vw,1.15rem);color:var(--text-primary);line-height:1.2}
-  .td-tseverity{font-family:var(--ds-font-mono);font-size:0.64rem;letter-spacing:0.04em;padding:0.15rem 0.4rem;border-radius:2px;font-weight:400}
   .td-tbody{font-size:clamp(0.92rem,2.5vw,1rem);color:var(--text-secondary);line-height:1.8}
+  /* The G-scale is NOAA's and means nothing to most readers, so each badge
+     carries what its rating actually is. .t-tt is the system's tooltip —
+     which until now could not be shown at all, since nothing ever set it
+     back to opaque. See ds-proposals/fixes.css. */
+  .td-sev-wrap{display:inline-flex}
+  .td-sev-wrap .t-tt{white-space:normal;width:max-content;max-width:15rem;text-align:left;line-height:1.5}
 
   /* Timeline legend */
   .td-legend{display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:2rem}
   .td-legend-item{display:flex;align-items:center;gap:0.5rem;font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-secondary)}
-  .td-legend-dot{width:0.6rem;height:0.6rem;border-radius:50%;border:1px solid}
+  .td-legend-dot{width:0.6rem;height:0.6rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0);flex:none}
+  .td-legend-dot--solar{border-color:var(--amber);background:var(--bg2)}
+  .td-legend-dot--g5{border-color:var(--amber);background:var(--bg2);box-shadow:0 0 5px color-mix(in srgb,var(--amber) 40%,transparent)}
+  .td-legend-dot--carrington{border-color:var(--ds-color-danger);background:var(--bg2);box-shadow:0 0 5px color-mix(in srgb,var(--ds-color-danger) 50%,transparent)}
+  .td-legend-dot--computing{border-color:var(--cold);background:var(--bg2)}
 
   /* Solar filter */
   .td-filter{display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
@@ -486,9 +572,6 @@ const styles = `
   .td-footer-brand{font-size:1.05rem;color:var(--text-secondary)}
   .td-footer-brand em{color:var(--amber-hi);font-style:italic}
   .td-footer-note{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-dim)}
-
-  .td-reveal{opacity:0;transform:translateY(24px);transition:opacity 0.7s ease,transform 0.7s ease}
-  .td-reveal.visible{opacity:1;transform:translateY(0)}
 `;
 
 // ─────────────────────────────────────────────────────────────
@@ -503,12 +586,42 @@ const styles = `
 //  - Streaks that are LINES not stretched circles — thin & directional
 //  - Speed varies a lot so motion feels organic not mechanical
 //  - Overall very dark — glow is blue-white, mostly dim
+/* Canvas takes colour strings, not custom properties, so a token has to be
+   resolved to real channel values before it can be drawn with. Setting the
+   token on a throwaway element's `color` and reading it back is the reliable
+   way: the browser resolves var() and color-mix() on a real property, where
+   getPropertyValue on the custom property itself would hand back the
+   unresolved expression. */
+function readChannels(token, fallback) {
+  const probe = document.createElement("span");
+  probe.style.cssText = `position:absolute;visibility:hidden;color:var(${token})`;
+  document.documentElement.appendChild(probe);
+  const raw = getComputedStyle(probe).color;
+  probe.remove();
+  const parts = raw.match(/-?[\d.]+/g);
+  if (!parts || parts.length < 3) return fallback;
+  /* Two serialisations, and the difference is not cosmetic. A plain colour
+     comes back as `rgb(4, 6, 13)` on 0-255. A color-mix() result comes back
+     from Chromium as `color(srgb 0.71 0.83 0.90)` on 0-1 — and both star
+     colours are mixes. Rounding those floats without rescaling gives
+     1,1,1, which is black: the whole field draws and is invisible. */
+  const scale = raw.startsWith("color(") ? 255 : 1;
+  return parts.slice(0, 3).map((n) => Math.round(Number(n) * scale)).join(",");
+}
+
 function Starfield() {
   const ref = useRef(null);
   useEffect(() => {
     const canvas = ref.current;
     const ctx    = canvas.getContext("2d");
     let W, H, CX, CY, raf;
+
+    /* Read once at mount rather than per star per frame — 700 stars at 60fps
+       would be 42,000 style resolutions a second for two values that do not
+       change. */
+    const COLD = readChannels("--star-cold", "180,210,240");
+    const WARM = readChannels("--star-warm", "220,185,130");
+    const VOID = readChannels("--ds-color-bg", "4,6,13");
 
     // Stars carry their own intrinsic size so the field is genuinely varied
     const mkStar = () => {
@@ -565,7 +678,7 @@ function Starfield() {
     const draw = () => {
       // Semi-transparent fill: controls how long streak ghosts linger
       // More opaque = shorter trails (reference has medium length)
-      ctx.fillStyle = "rgba(4,6,13,0.20)";
+      ctx.fillStyle = `rgba(${VOID},0.20)`;
       ctx.fillRect(0, 0, W, H);
 
       const maxDist = Math.sqrt(CX * CX + CY * CY);
@@ -587,7 +700,7 @@ function Starfield() {
         // Radius grows slightly as star approaches (perspective scaling)
         const r = s.baseR * (0.4 + t * 0.7);
 
-        const base = s.warm ? "220,185,130" : "180,210,240";
+        const base = s.warm ? WARM : COLD;
 
         // ── STREAK (line from prev position to current) ──
         // Length is a fraction of current dist — grows as star moves out
@@ -627,7 +740,7 @@ function Starfield() {
       raf = requestAnimationFrame(draw);
     };
 
-    ctx.fillStyle = "#04060d";
+    ctx.fillStyle = `rgb(${VOID})`;
     ctx.fillRect(0, 0, W, H);
     // Respect reduced-motion: paint one static field instead of a
     // perpetual rAF warp — a full-screen zooming starfield is exactly
@@ -710,61 +823,45 @@ function Clock({ size = 240 }) {
 
   // Second indicator: a bright pulsing star
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-      style={{ overflow: "visible", filter: "drop-shadow(0 0 30px rgba(100,160,220,0.12))" }}>
+    <svg className="td-clock" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
 
       {/* Faint outer rim circle — barely visible */}
-      <circle cx={cx} cy={cy} r={rimR} fill="none" stroke="rgba(46,64,96,0.25)" strokeWidth="0.5" strokeDasharray="2 6"/>
+      <circle className="td-clock-rim" cx={cx} cy={cy} r={rimR}/>
 
       {/* Constellation connecting lines between hour clusters */}
       {constLines.map(([a, b], i) => {
         const ca = hourClusters[a].centre;
         const cb = hourClusters[b].centre;
         return (
-          <line key={i}
+          <line className="td-clock-const" key={i}
             x1={ca.x} y1={ca.y} x2={cb.x} y2={cb.y}
-            stroke="rgba(107,140,176,0.12)" strokeWidth="0.6"
           />
         );
       })}
 
       {/* Hour hand — faint dotted line to nearest cluster star */}
-      <line x1={cx} y1={cy} x2={hEnd.x} y2={hEnd.y}
-        stroke="rgba(184,201,224,0.35)" strokeWidth="1.2"
-        strokeLinecap="round" strokeDasharray="3 5"
-      />
+      <line className="td-clock-hour" x1={cx} y1={cy} x2={hEnd.x} y2={hEnd.y}/>
 
       {/* Minute hand — slightly brighter */}
-      <line x1={cx} y1={cy} x2={mEnd.x} y2={mEnd.y}
-        stroke="rgba(240,160,80,0.45)" strokeWidth="0.9"
-        strokeLinecap="round" strokeDasharray="1 4"
-      />
+      <line className="td-clock-min" x1={cx} y1={cy} x2={mEnd.x} y2={mEnd.y}/>
 
       {/* Hour cluster stars */}
       {hourClusters.map((cluster, ci) =>
         cluster.stars.map((star, si) => (
-          <circle key={`${ci}-${si}`}
+          <circle className="td-clock-star" key={`${ci}-${si}`}
             cx={star.x} cy={star.y} r={star.r}
-            fill={`rgba(184,210,240,${star.brightness})`}
+            opacity={star.brightness}
           />
         ))
       )}
 
       {/* Second indicator — a single amber star creeping around the rim */}
-      <circle cx={sPos.x} cy={sPos.y} r={2.4}
-        fill="rgba(240,160,80,0.9)"
-        style={{ filter: "drop-shadow(0 0 4px rgba(240,160,80,0.8))" }}
-      />
+      <circle className="td-clock-sec" cx={sPos.x} cy={sPos.y} r={2.4} opacity={0.9}/>
       {/* Tiny halo */}
-      <circle cx={sPos.x} cy={sPos.y} r={4.5}
-        fill="none" stroke="rgba(240,160,80,0.25)" strokeWidth="0.8"
-      />
+      <circle className="td-clock-halo" cx={sPos.x} cy={sPos.y} r={4.5}/>
 
       {/* Centre star */}
-      <circle cx={cx} cy={cy} r={2}
-        fill="rgba(200,220,255,0.9)"
-        style={{ filter: "drop-shadow(0 0 5px rgba(184,210,240,0.9))" }}
-      />
+      <circle className="td-clock-centre" cx={cx} cy={cy} r={2}/>
     </svg>
   );
 }
@@ -794,10 +891,107 @@ function ScrollProgress() {
   return <div className="td-progress" style={{ transform: `scaleX(${pct})` }} />;
 }
 
+/* .t-reveal from ds/css/components/reveal.css, in place of the app's own
+   copy of the same three rules. The no-IntersectionObserver branch is the
+   system's documented behaviour — everything shows rather than staying
+   invisible — which the local version did not have: without it a browser
+   missing the observer got a blank page rather than an unanimated one. */
 function Reveal({children}) {
   const ref=useRef(null);
-  useEffect(()=>{const el=ref.current;if(!el)return;const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){el.classList.add("visible");obs.unobserve(el);}});},{threshold:0.06});obs.observe(el);return()=>obs.disconnect();},[]);
-  return <div className="td-reveal" ref={ref}>{children}</div>;
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el) return;
+    if(typeof IntersectionObserver==="undefined"){el.classList.add("in");return;}
+    const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){el.classList.add("in");obs.unobserve(el);}});},{threshold:0.06});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+  return <div className="t-reveal" ref={ref}>{children}</div>;
+}
+
+/* t-stagger plays on .is-shown rather than on mount, so the class goes on a
+   frame later — set in the same paint as the markup and there is no
+   from-state for the browser to transition out of. */
+function Stagger({className="",children}) {
+  const ref=useRef(null);
+  useEffect(()=>{
+    const id=requestAnimationFrame(()=>ref.current?.classList.add("is-shown"));
+    return()=>cancelAnimationFrame(id);
+  },[]);
+  return <div className={`t-stagger ${className}`} ref={ref}>{children}</div>;
+}
+
+/* The lean is deliberately shallow. The recipe suggests 10-16 degrees and
+   demos up to 40; on a page about time quietly going missing, anything that
+   reads as a toy is wrong, and 5 is enough to register as a surface catching
+   the light.
+
+   Mouse only, on purpose. The tilt also works on touch, but only with
+   touch-action:none on the wrapper, which takes the page's scroll away
+   everywhere a card sits under the thumb. On a grid of reading cards that is
+   a bad trade, so --tilt-touch stays auto and touch pointers are ignored. */
+const TILT_MAX = 5;
+
+function TiltCard({children}) {
+  const wrap=useRef(null), card=useRef(null);
+  useEffect(()=>{
+    const w=wrap.current, c=card.current;
+    if(!w||!c) return;
+    const reduce=window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reset=()=>{
+      w.classList.remove("is-hover");
+      c.classList.remove("is-tilting");
+      c.style.setProperty("--tilt-rx","0deg");
+      c.style.setProperty("--tilt-ry","0deg");
+    };
+    /* Tracked on the outer wrapper, which never transforms. Track the card
+       that rotates and its edges slip out from under the cursor near the
+       borders, flickering the hover on and off. */
+    const track=(e)=>{
+      if(e.pointerType!=="mouse"||reduce.matches) return;
+      const r=w.getBoundingClientRect();
+      const px=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+      const py=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+      w.classList.add("is-hover");
+      c.classList.add("is-tilting");
+      c.style.setProperty("--tilt-ry",`${((px-0.5)*TILT_MAX).toFixed(2)}deg`);
+      c.style.setProperty("--tilt-rx",`${((0.5-py)*TILT_MAX).toFixed(2)}deg`);
+      c.style.setProperty("--tilt-gx",`${(px*100).toFixed(1)}%`);
+      c.style.setProperty("--tilt-gy",`${(py*100).toFixed(1)}%`);
+    };
+    const leave=(e)=>{if(e.pointerType==="mouse") reset();};
+    w.addEventListener("pointermove",track);
+    w.addEventListener("pointerleave",leave);
+    return()=>{
+      w.removeEventListener("pointermove",track);
+      w.removeEventListener("pointerleave",leave);
+    };
+  },[]);
+  return (
+    <div className="t-tilt td-tilt" ref={wrap}>
+      <div className="t-tilt-card" ref={card}>
+        {children}
+        <div className="t-tilt-glare"/>
+      </div>
+    </div>
+  );
+}
+
+/* One span per character so each can carry its own delay. The last two get
+   the stagger attributes the component reads, so a unit suffix or a percent
+   sign arrives just behind the figure rather than as part of it. */
+function Digits({value}) {
+  const chars=[...String(value)];
+  return (
+    <span className="t-digit-group is-animating">
+      {chars.map((ch,i)=>(
+        <span className="t-digit" key={i}
+          data-stagger={i===chars.length-2?"1":i===chars.length-1?"2":undefined}>
+          {ch===" "?"\u00a0":ch}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function LiveAge({dob,region,flightKey}) {
@@ -845,11 +1039,40 @@ function DissonanceCalc() {
   const [flight, setFlight] = useState("annual");
   const [result, setResult] = useState(null);
   const [calcState, setCalcState] = useState("idle"); // idle | loading | done
+  const [dobError, setDobError] = useState("");
+  /* The shake is state rather than a class added to the node. Setting
+     dobError re-renders, and React rewrites className from the JSX on every
+     render — so a class put on imperatively is wiped before the animation
+     gets a frame. Clearing it on animationend is what lets the next refusal
+     replay it. */
+  const [shaking, setShaking] = useState(false);
+  const revertTimer = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(revertTimer.current), []);
 
   const calculate = useCallback(() => {
     if (calcState !== "idle") return;
     const r = calcDissonance(dob, region, flight);
-    if (!r) return; // invalid/missing date — leave the field's own validation to say so
+    if (!r) {
+      /* The field assembly already knows how to refuse: is-error turns the
+         hairline hot and fades the message in underneath, is-shaking runs
+         the shake, and the portfolio's gate settles both back after three
+         seconds. All of that was already in ds/css/components/field.css and
+         none of it was wired up — the click just did nothing, which on a
+         form whose only required input is a date is the one failure that
+         needed saying out loud. */
+      setDobError(dob
+        ? "That date isn't in range — anywhere from 1900 to today."
+        : "A date of birth first, and the rest follows from it.");
+      /* Two renders, not one: dropping the class and re-adding it in the
+         same batch is a no-op, so the second goes in a later frame. */
+      setShaking(false);
+      requestAnimationFrame(() => setShaking(true));
+      window.clearTimeout(revertTimer.current);
+      revertTimer.current = window.setTimeout(() => setDobError(""), 3000);
+      return;
+    }
+    setDobError("");
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) { setResult(r); setStep(2); return; }
     setCalcState("loading");
@@ -887,12 +1110,23 @@ function DissonanceCalc() {
               <div className="td-step-label" data-n="1">Date of birth</div>
               <div className="td-input-row">
                 <div className="td-input-group">
-                  <div className="t-input">
-                    <input type="date" value={dob}
-                      max={new Date().toISOString().split("T")[0]} min="1900-01-01"
-                      onChange={e=>setDob(e.target.value)}
-                      onKeyDown={e=>e.key==="Enter"&&calculate()}
-                    />
+                  <div className={`t-input-wrap${dobError?" is-error":""}`}>
+                    <div className={`t-input${dobError?" is-error":""}${shaking?" is-shaking":""}`}
+                      onAnimationEnd={()=>setShaking(false)}>
+                      <input type="date" value={dob}
+                        max={new Date().toISOString().split("T")[0]} min="1900-01-01"
+                        aria-invalid={dobError?"true":undefined}
+                        aria-describedby="td-dob-error"
+                        onChange={e=>{setDob(e.target.value);setDobError("");}}
+                        onKeyDown={e=>e.key==="Enter"&&calculate()}
+                      />
+                    </div>
+                    {/* The message holds its line whether or not it is
+                        showing — it fades on opacity and visibility rather
+                        than display, so the fields below it don't jump. */}
+                    <p className="t-error-msg td-error-msg" id="td-dob-error" role="alert">
+                      {dobError||"\u00a0"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -926,13 +1160,30 @@ function DissonanceCalc() {
               </div>
             </div>
 
+            {/* .t-check-badge is the portfolio gate's spinner-to-tick, and
+                .t-think shimmers the label while the sum runs. Between them
+                they replace a hand-rolled ring spinner, a hand-drawn tick
+                and two keyframes that existed only here. */}
             <button className="td-calc-btn" data-state={calcState} onClick={calculate} disabled={calcState !== "idle"} aria-live="polite">
-              <span className="td-calc-spinner" aria-hidden="true"/>
-              <svg className="td-calc-check" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <span className="t-check-blur-wrap" hidden={calcState === "idle"} aria-hidden="true">
+                <span className="t-check-badge" data-state={calcState === "done" ? "done" : "loading"}>
+                  <span className="t-check-ring"/>
+                  <span className="t-check-arc"/>
+                  <span className="t-check-fill"/>
+                  <span className="t-check-disc">
+                    <svg viewBox="0 0 22 22" fill="none">
+                      <path className="t-check-mark" d="M6 11.5L9.5 15L16 8" style={{"--check-mark-len":"15"}}/>
+                    </svg>
+                  </span>
+                </span>
+              </span>
               <span className="td-calc-label">
-                {calcState === "loading" ? "Calculating…" : calcState === "done" ? "Done" : "Show me my dissonance"}
+                {calcState === "loading" ? (
+                  <span className="t-think">
+                    <span className="t-think-sizer">Calculating…</span>
+                    <span className="t-think-text" data-text="Calculating…">Calculating…</span>
+                  </span>
+                ) : calcState === "done" ? "Done" : "Show me my dissonance"}
               </span>
             </button>
           </div>
@@ -963,42 +1214,42 @@ function DissonanceCalc() {
             <div className="td-metric-grid">
               {!result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val amber">{result.hoursStolen}</div>
+                  <div className="td-metric-val amber"><Digits value={result.hoursStolen}/></div>
                   <div className="td-metric-lbl">hours that didn't exist</div>
                 </div>
               )}
               {!result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val">{result.pctStolen}%</div>
+                  <div className="td-metric-val"><Digits value={`${result.pctStolen}%`}/></div>
                   <div className="td-metric-lbl">of your life, uncounted</div>
                 </div>
               )}
               <div className="td-metric">
-                <div className="td-metric-val green">{result.nsYounger.toLocaleString()}ns</div>
+                <div className="td-metric-val green"><Digits value={`${result.nsYounger.toLocaleString()}ns`}/></div>
                 <div className="td-metric-lbl">younger than your grounded self</div>
               </div>
               <div className="td-metric">
-                <div className="td-metric-val cold">{result.totalFlightHours.toLocaleString()}h</div>
+                <div className="td-metric-val cold"><Digits value={`${result.totalFlightHours.toLocaleString()}h`}/></div>
                 <div className="td-metric-lbl">estimated hours in the air</div>
               </div>
               {(result.regionNoDST) && (
                 <div className="td-metric">
-                  <div className="td-metric-val mist">{result.totalHours.toLocaleString()}</div>
+                  <div className="td-metric-val mist"><Digits value={result.totalHours.toLocaleString()}/></div>
                   <div className="td-metric-lbl">hours lived so far</div>
                 </div>
               )}
               {(result.regionNoDST) && (
                 <div className="td-metric">
-                  <div className="td-metric-val amber">0</div>
+                  <div className="td-metric-val amber"><Digits value="0"/></div>
                   <div className="td-metric-lbl">clock-hours skipped by DST</div>
                 </div>
               )}
               <div className="td-metric">
-                <div className="td-metric-val mist">{result.leapSecondsLived}</div>
+                <div className="td-metric-val mist"><Digits value={result.leapSecondsLived}/></div>
                 <div className="td-metric-lbl">leap seconds you've lived through</div>
               </div>
               <div className="td-metric">
-                <div className="td-metric-val cold">{result.y2038Age}</div>
+                <div className="td-metric-val cold"><Digits value={result.y2038Age}/></div>
                 <div className="td-metric-lbl">your age when 32-bit time overflows</div>
               </div>
             </div>
@@ -1067,12 +1318,7 @@ function CombinedTimeline() {
     return true;
   });
 
-  const severityClass = (sev) => {
-    if (!sev) return "";
-    return sev.toLowerCase().replace("+","plus");
-  };
-
-  const sevColor = (sev) => SEVERITY_COLORS[sev] || "#2e4060";
+  const severityClass = (sev) => (sev ? SEVERITY[sev]?.cls ?? "" : "");
 
   return (
     <section className="td-section">
@@ -1089,23 +1335,23 @@ function CombinedTimeline() {
         {/* Legend */}
         <div className="td-legend">
           <div className="td-legend-item">
-            <div className="td-legend-dot" style={{borderColor:"#2e4060",background:"#04060d"}}/>
+            <div className="td-legend-dot"/>
             Historical event
           </div>
           <div className="td-legend-item">
-            <div className="td-legend-dot" style={{borderColor:"#d4853a",background:"#0d1526"}}/>
+            <div className="td-legend-dot td-legend-dot--solar"/>
             G3/G4 solar storm
           </div>
           <div className="td-legend-item">
-            <div className="td-legend-dot" style={{borderColor:"#d4853a",background:"#0d1526",boxShadow:"0 0 5px rgba(212,133,58,0.4)"}}/>
+            <div className="td-legend-dot td-legend-dot--g5"/>
             G5 extreme storm
           </div>
           <div className="td-legend-item">
-            <div className="td-legend-dot" style={{borderColor:"#ff4444",background:"#0d1526",boxShadow:"0 0 5px rgba(255,68,68,0.5)"}}/>
+            <div className="td-legend-dot td-legend-dot--carrington"/>
             Carrington-class
           </div>
           <div className="td-legend-item">
-            <div className="td-legend-dot" style={{borderColor:"#5aabcf",background:"#0d1526"}}/>
+            <div className="td-legend-dot td-legend-dot--computing"/>
             Computing time bug
           </div>
         </div>
@@ -1132,8 +1378,14 @@ function CombinedTimeline() {
                 <div className="td-trow">
                   <div className="td-ttitle">{item.label}</div>
                   {item.severity && (
-                    <span className="td-tseverity" style={{background:sevColor(item.severity)+"22",color:sevColor(item.severity),border:`1px solid ${sevColor(item.severity)}44`}}>
-                      {item.severity}
+                    /* tabIndex so the tooltip is reachable without a
+                       pointer — .t-tt opens on focus-within as well as
+                       hover, now that it opens at all. */
+                    <span className="t-tt-wrap td-sev-wrap">
+                      <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0}>
+                        {item.severity}
+                      </span>
+                      <span className="t-tt" role="tooltip">{SEVERITY[item.severity].note}</span>
                     </span>
                   )}
                 </div>
@@ -1195,13 +1447,15 @@ export default function App() {
         </div>
 
         <section className="td-hero">
-          <p className="td-eyebrow">On the strangeness of time</p>
-          <h1 className="td-title">Time<br/><span className="td-title-em">Dissonance</span></h1>
-          <p className="td-sub">Time doesn't flow evenly. It slips, stretches, and vanishes entirely. Some hours you'll never find again — not because you wasted them, but because they simply weren't there.</p>
-          <div className="td-clock-wrap">
-            <Clock size={200}/>
-            <div className="td-clock-caption">hour · minute · second</div>
-          </div>
+          <Stagger className="td-hero-lines">
+            <p className="t-stagger-line td-eyebrow">On the strangeness of time</p>
+            <h1 className="t-stagger-line td-title">Time<br/><span className="td-title-em">Dissonance</span></h1>
+            <p className="t-stagger-line td-sub">Time doesn't flow evenly. It slips, stretches, and vanishes entirely. Some hours you'll never find again — not because you wasted them, but because they simply weren't there.</p>
+            <div className="t-stagger-line td-clock-wrap">
+              <Clock size={200}/>
+              <div className="td-clock-caption">hour · minute · second</div>
+            </div>
+          </Stagger>
           <p className="td-scroll-hint">Scroll to understand what's happened to your time</p>
         </section>
 
@@ -1233,12 +1487,14 @@ export default function App() {
           <Reveal>
             <div className="td-cards">
               {dstCards.map((c,i)=>(
-                <div className="td-card" key={i}>
-                  <span className="td-card-tag">{c.tag}</span>
-                  <h3 className="td-card-title">{c.title}</h3>
-                  <p className="td-card-body">{c.body}</p>
-                  <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                </div>
+                <TiltCard key={i}>
+                  <div className="td-card">
+                    <span className="td-card-tag">{c.tag}</span>
+                    <h3 className="td-card-title">{c.title}</h3>
+                    <p className="td-card-body">{c.body}</p>
+                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
+                  </div>
+                </TiltCard>
               ))}
             </div>
           </Reveal>
@@ -1268,13 +1524,15 @@ export default function App() {
           <Reveal>
             <div className="td-rel-grid">
               {relCards.map((c,i)=>(
-                <div className={`td-rel-card${c.hl?" hl":""}`} key={i}>
-                  <div className="td-rel-num">{c.num}</div>
-                  <span className="td-card-tag">{c.tag}</span>
-                  <h3 className="td-card-title">{c.title}</h3>
-                  <p className="td-card-body">{c.body}</p>
-                  <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                </div>
+                <TiltCard key={i}>
+                  <div className={`td-rel-card${c.hl?" hl":""}`}>
+                    <div className="td-rel-num">{c.num}</div>
+                    <span className="td-card-tag">{c.tag}</span>
+                    <h3 className="td-card-title">{c.title}</h3>
+                    <p className="td-card-body">{c.body}</p>
+                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
+                  </div>
+                </TiltCard>
               ))}
             </div>
           </Reveal>
@@ -1294,12 +1552,14 @@ export default function App() {
           <Reveal>
             <div className="td-cards">
               {solarCards.map((c,i)=>(
-                <div className="td-card" key={i}>
-                  <span className="td-card-tag">{c.tag}</span>
-                  <h3 className="td-card-title">{c.title}</h3>
-                  <p className="td-card-body">{c.body}</p>
-                  <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                </div>
+                <TiltCard key={i}>
+                  <div className="td-card">
+                    <span className="td-card-tag">{c.tag}</span>
+                    <h3 className="td-card-title">{c.title}</h3>
+                    <p className="td-card-body">{c.body}</p>
+                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
+                  </div>
+                </TiltCard>
               ))}
             </div>
           </Reveal>
@@ -1319,12 +1579,14 @@ export default function App() {
           <Reveal>
             <div className="td-cards">
               {computingCards.map((c,i)=>(
-                <div className="td-card" key={i}>
-                  <span className="td-card-tag">{c.tag}</span>
-                  <h3 className="td-card-title">{c.title}</h3>
-                  <p className="td-card-body">{c.body}</p>
-                  <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                </div>
+                <TiltCard key={i}>
+                  <div className="td-card">
+                    <span className="td-card-tag">{c.tag}</span>
+                    <h3 className="td-card-title">{c.title}</h3>
+                    <p className="td-card-body">{c.body}</p>
+                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
+                  </div>
+                </TiltCard>
               ))}
             </div>
           </Reveal>

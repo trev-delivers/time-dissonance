@@ -1,0 +1,127 @@
+/* Upstream fixes, staged locally.
+ *
+ * Everything in this file is a bug in the vendored design system, not a local
+ * preference. Each block names the source file in trev-delivers/obvious that
+ * should change; once it does and `node scripts/sync-ds.mjs` brings the fix
+ * down into ds/, delete the block from here.
+ *
+ * The common cause: the components lifted from transitions.dev were pasted in
+ * with the recipe's own variable names intact rather than rewired onto --ds-*.
+ *
+ * Worth noting which way the evidence runs. The docs site demos nine of the
+ * eleven components under "The interaction layer", labelled "All working".
+ * The two it does not demo are t-tt and t-badge — and those are exactly the
+ * two that are broken. They are not broken in this app specifically; they are
+ * broken everywhere, and nothing was looking at them.
+ *
+ * Deliberate decisions documented on that page are left alone. t-check-badge
+ * is green and white in every theme on purpose ("a tick that changes colour
+ * stops reading as a tick") and t-gradient-text is unthemed on purpose. Both
+ * carry literal colours and neither is a bug.
+ */
+
+/* ── 1. The tooltip can never be shown ───────────────────────────────────
+ * src/components/tooltip.css defines .t-tt with opacity:0 and no rule
+ * anywhere that sets it back to 1 — no :hover, no .is-open, no data-state.
+ * It is the last rule in the built components.css and the trigger half was
+ * never written. Any markup using it renders an invisible tooltip.
+ *
+ * The component already has the shape for it: .t-tt-wrap is the positioning
+ * parent, and --tt-scale:.98 is a from-state that implies a to-state of 1.
+ * Hover covers the pointer, focus-within covers the keyboard, and .is-open
+ * lets JS drive it where a hover is not the trigger. */
+.t-tt-wrap:hover .t-tt,
+.t-tt-wrap:focus-within .t-tt,
+.t-tt-wrap.is-open .t-tt {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ── 2. Dangling variables ───────────────────────────────────────────────
+ * tooltip.css reads --line2, --dim and --mono; badge.css reads --mono and
+ * --bg. No theme and no primitive declares any of them, so the tooltip draws
+ * a border with no colour in it and inherits the body serif where it wants
+ * the mono face, and the badge's 2px ring around the dot is a ring of
+ * nothing.
+ *
+ * Upstream these become --ds-color-border, --ds-color-text-dim,
+ * --ds-font-mono and --ds-color-bg in the component sources. The aliases
+ * below are the smallest thing that makes the shipped CSS correct in the
+ * meantime — a shim, which is why they sit on :root rather than being
+ * written as replacement component rules. */
+:root {
+  --line2: var(--ds-color-border);
+  --dim: var(--ds-color-text-dim);
+  --mono: var(--ds-font-mono);
+  --bg: var(--ds-color-bg);
+}
+
+/* The tooltip's surface is hard-coded #101215 — a near-black that happens to
+   suit a dark app and vanishes into parchment. Unlike the tick, nothing
+   documents this one as deliberate, and a tooltip has no reason to resist
+   the theme the way a success tick does. */
+.t-tt {
+  background: var(--ds-color-surface-raised);
+  box-shadow: 0 12px 26px -14px var(--ds-color-shadow-color);
+}
+
+/* ── 3. Fixed greys that only work on a dark theme ───────────────────────
+ * These two are meant to be grey — the docs are explicit that t-think uses
+ * "greys rather than the accent, so it stays quiet", and that is right. The
+ * bug is that the greys are fixed rather than derived: --think-base #9A9A9A
+ * with --think-highlight #F5F5F5 is a near-white sweep over mid-grey, which
+ * is legible on near-black and close to invisible on parchment.
+ *
+ * Keeping the intent and taking the values from the theme's own muted and
+ * primary text colours holds the effect on both. */
+.t-think {
+  --think-base: var(--ds-color-text-muted);
+  --think-highlight: var(--ds-color-text);
+}
+.t-boot-ring {
+  --boot-base: var(--ds-color-border);
+  --boot-active: var(--ds-color-text-dim);
+}
+
+/* ── 4. A size that should be a variable ─────────────────────────────────
+ * check-badge.css hard-codes 22px three times (width, height, flex-basis),
+ * so an app that wants the spinner-to-tick inside a smaller control has to
+ * override all three and fight the flex shorthand. One variable, defaulting
+ * to today's 22px, changes nothing for existing callers. */
+.t-check-badge {
+  --check-size: 22px;
+  width: var(--check-size);
+  height: var(--check-size);
+  flex: 0 0 var(--check-size);
+}
+
+/* ── 5. Timings that went around the system ──────────────────────────────
+ * stagger.css is the transitions.dev texts-reveal recipe copied verbatim,
+ * literals and all: 500ms and the raw easing curve, where --ds-duration-*
+ * and --ds-ease-out exist for exactly this.
+ *
+ * Not a pure refactor: the system has no 500ms step, so the entrance lands on
+ * --ds-duration-slow and gets 100ms quicker. That is the trade the tokens are
+ * for — the reveal retunes with the rest of the system instead of holding a
+ * number the recipe happened to ship with.
+ *
+ * --stagger-stagger, --stagger-distance and --stagger-blur stay literal
+ * upstream: 40ms, 12px and 3px are the recipe's own tuning and the system has
+ * no offset, distance or blur scale to put them on. */
+.t-stagger {
+  --stagger-dur: var(--ds-duration-slow);
+  --stagger-ease: var(--ds-ease-out);
+}
+
+/* stagger.css defines .t-stagger-line--2 and stops, so a block of more than
+   two lines needs a hand-written modifier class per extra line — and the
+   recipe's own docs tell you to write them. The delay is a pure function of
+   position, so deriving it from nth-child means any number of lines works
+   with no new classes. The existing --2 modifier keeps working; this is
+   additive. */
+.t-stagger .t-stagger-line:nth-child(1) { transition-delay: 0ms; }
+.t-stagger .t-stagger-line:nth-child(2) { transition-delay: var(--stagger-stagger); }
+.t-stagger .t-stagger-line:nth-child(3) { transition-delay: calc(var(--stagger-stagger) * 2); }
+.t-stagger .t-stagger-line:nth-child(4) { transition-delay: calc(var(--stagger-stagger) * 3); }
+.t-stagger .t-stagger-line:nth-child(5) { transition-delay: calc(var(--stagger-stagger) * 4); }
+.t-stagger .t-stagger-line:nth-child(6) { transition-delay: calc(var(--stagger-stagger) * 5); }

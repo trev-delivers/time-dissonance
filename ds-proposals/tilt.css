@@ -1,0 +1,87 @@
+/* t-tilt — transitions.dev's card hover tilt, themed.
+ *
+ * Proposed for trev-delivers/obvious as src/components/tilt.css.
+ * Source recipe: transitions/card-tilt.md (free tier).
+ *
+ * A surface that leans toward the pointer with a soft light tracking across
+ * it. The recipe's glare is hard-coded white with mix-blend-mode:screen,
+ * which is a choice that only works on a dark theme — on parchment a white
+ * screen-blend is invisible. Both the colour and the blend mode are
+ * variables here so a light theme can set multiply and a dark one can tint
+ * the light to its accent, which is what this app does: the glare reads as
+ * the same low amber lamp the rest of the theme is lit by.
+ */
+
+.t-tilt{
+  /* The outer wrapper is the flat hit area and never transforms, so the
+     card's rotating edges cannot slip out from under the cursor and
+     flicker the hover.
+
+     The recipe hard-codes touch-action:none so a finger can drag the tilt.
+     That suits one hero card and is actively wrong for a grid of them — it
+     takes the page's scroll away everywhere a card is under the thumb, and
+     on a long page that is most of the screen. The default stays none to
+     match the recipe, but it is a variable, so a page of content cards sets
+     --tilt-touch:auto and keeps its scroll. */
+  touch-action:var(--tilt-touch,none);
+  --tilt-perspective:1000px;
+  --tilt-return:var(--ds-duration-slowest);
+  --tilt-return-ease:var(--ds-ease-out);
+  --tilt-follow:var(--ds-duration-slow);
+  --tilt-follow-ease:var(--ds-ease-out);
+  --tilt-glare-color:var(--ds-color-text);
+  --tilt-glare-blend:screen;
+  --tilt-glare-opacity:0.32;
+  --tilt-glare-fade:var(--ds-duration-base);
+  --tilt-glare-ease:var(--ds-ease-out);
+}
+
+.t-tilt-card{
+  position:relative;
+  border-radius:var(--ds-radius-md);
+  overflow:hidden;
+  transform:
+    perspective(var(--tilt-perspective))
+    rotateX(var(--tilt-rx,0deg))
+    rotateY(var(--tilt-ry,0deg));
+  transform-style:preserve-3d;
+  transition:transform var(--tilt-return) var(--tilt-return-ease);
+  will-change:transform;
+}
+
+/* While the pointer is moving the card tracks it on a much shorter
+   transition, so the lean follows the cursor rather than lagging a second
+   behind it. On leave the class comes off and the longer return eases it
+   back to flat. */
+.t-tilt-card.is-tilting{
+  transition:transform var(--tilt-follow) var(--tilt-follow-ease);
+}
+
+/* Three stacked radial gradients at the pointer position: a tight hot
+   centre, a wider falloff and a broad wash. Written from the glare colour
+   via color-mix so the whole stack retints from one variable. */
+.t-tilt-glare{
+  position:absolute;inset:0;
+  pointer-events:none;
+  opacity:0;
+  mix-blend-mode:var(--tilt-glare-blend);
+  background:
+    radial-gradient(circle 95px at var(--tilt-gx,50%) var(--tilt-gy,50%),
+      color-mix(in srgb,var(--tilt-glare-color) 48%,transparent),
+      color-mix(in srgb,var(--tilt-glare-color) 6%,transparent) 52%,
+      transparent 84%),
+    radial-gradient(circle 200px at var(--tilt-gx,50%) var(--tilt-gy,50%),
+      color-mix(in srgb,var(--tilt-glare-color) 22%,transparent),
+      color-mix(in srgb,var(--tilt-glare-color) 4%,transparent) 58%,
+      transparent 78%),
+    radial-gradient(circle 360px at var(--tilt-gx,50%) var(--tilt-gy,50%),
+      color-mix(in srgb,var(--tilt-glare-color) 10%,transparent),
+      transparent 88%);
+  transition:opacity var(--tilt-glare-fade) var(--tilt-glare-ease);
+}
+.t-tilt.is-hover .t-tilt-glare{opacity:var(--tilt-glare-opacity)}
+
+@media (prefers-reduced-motion:reduce){
+  .t-tilt-card{transform:none!important;transition:none!important}
+  .t-tilt-glare{display:none}
+}
