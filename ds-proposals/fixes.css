@@ -1,7 +1,7 @@
 /* Upstream fixes, staged locally.
  *
  * Everything in this file is a bug in the vendored design system, not a local
- * preference. Each block names the source file in trev-delivers/obvious that
+ * preference. Each block names the source file in obvious that
  * should change; once it does and `node scripts/sync-ds.mjs` brings the fix
  * down into ds/, delete the block from here.
  *
