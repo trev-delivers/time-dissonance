@@ -1,6 +1,6 @@
 # ds-proposals
 
-Design system work that belongs in [trev-delivers/obvious](https://github.com/trev-delivers/obvious)
+Design system work that belongs in obvious
 but is staged here until it lands there.
 
 `ds/` is not the place for it. `scripts/sync-ds.mjs` deletes and re-copies that

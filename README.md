@@ -1,6 +1,6 @@
 # Time Dissonance
 
-A meditation on slipping hours. A single-page site about the ways time is quietly taken from you — by policy, by physics, by the sun, and by a handful of decades-old engineering shortcuts that are running out of road.
+A single-page site about the hours daylight saving skips, and the other ways clocks drift: relativity, solar storms and old shortcuts in how computers store time.
 
 **Live site:** https://time-dissonance.vercel.app
 
@@ -91,25 +91,20 @@ Every claim on the site links to its source inline, but the ones behind the newe
 
 ## Design system
 
-The look is not this repo's. Colour, type, spacing, motion and the interaction
-components all come from [obvious](https://github.com/trev-delivers/obvious),
-vendored into `ds/` by `scripts/sync-ds.mjs` and stamped in `ds/.version`.
-Nothing in `ds/` is edited here — the sync deletes and re-copies the folder, so
-edits there last until the next pull and no longer.
+Colour, type, spacing, motion and the interaction components come from
+obvious, vendored into `ds/` by `scripts/sync-ds.mjs` and stamped in
+`ds/.version`. Don't edit `ds/` by hand: the sync deletes and re-copies it.
+The theme is Dissonance: Libre Baskerville for headings, Libre Franklin for
+everything else, loaded in `index.html`.
 
-- `npm run ds:check` — fail if the vendored copy has drifted from upstream
-- `npm run ds:audit` — what the app uses, and what went around the system
-- `npm run ds:audit:ci` — the same, against a bypass budget
+- `npm run ds:check`: fail if the vendored copy has drifted from upstream
+- `npm run ds:audit`: what the app uses, and what went around the system
+- `npm run ds:audit:ci`: the same, against a bypass budget
 
-`ds-proposals/` is design system work found while building this app that
-belongs upstream rather than here — fixes to broken components and two new
-ones adapted from [transitions.dev](https://transitions.dev) recipes. Each
-file is written to be lifted into `obvious` and deleted from here once it
-lands; `ds-proposals/README.md` has the detail and the promotion steps.
-
-`transitions/` is the vendored free transitions.dev catalogue
-(`npx transitions-dev add --free`), kept in-repo so every component in
-`ds-proposals/` can point at the recipe it came from.
+`ds-proposals/` holds fixes and two components meant for obvious, and
+`transitions/` is the transitions.dev catalogue they were adapted from. Neither
+is imported by the app; the few fixes it still needs live in the stylesheet in
+`src/App.jsx`.
 
 ## Tech
 

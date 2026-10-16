@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import Starfield from "./Starfield.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // DST REGION DATA
@@ -127,11 +128,11 @@ const DST_REGIONS = {
 // FLIGHT FREQUENCY OPTIONS
 // ─────────────────────────────────────────────────────────────
 const FLIGHT_OPTIONS = [
-  { key: "never",    label: "Never / almost never",  hoursPerYear: 0 },
-  { key: "rare",     label: "Rarely (1 long-haul every few years)", hoursPerYear: 5 },
+  { key: "never",    label: "Never or almost never",  hoursPerYear: 0 },
+  { key: "rare",     label: "Rarely (1 long-haul flight every few years)", hoursPerYear: 5 },
   { key: "annual",   label: "Once or twice a year",   hoursPerYear: 20 },
   { key: "frequent", label: "Several times a year",   hoursPerYear: 60 },
-  { key: "heavy",    label: "Very frequently (work travel etc)", hoursPerYear: 120 },
+  { key: "heavy",    label: "Very often (for work, say)", hoursPerYear: 120 },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -227,54 +228,47 @@ function calcDissonance(dob, region, flightKey) {
 // COMBINED TIMELINE (historical + solar)
 // ─────────────────────────────────────────────────────────────
 const HISTORY_EVENTS = [
-  { date: "1784-01-01", label: "Franklin's satire", type: "history", desc: "Benjamin Franklin writes a tongue-in-cheek essay suggesting Parisians could save candles by waking at dawn. He means it as a joke. It is later used, without irony, to justify DST." },
-  { date: "1859-09-01", label: "Carrington Event", type: "solar", severity: "G5+", desc: "The most powerful geomagnetic storm on record. Telegraph systems caught fire. Operators received electric shocks. Auroras visible at the equator." },
+  { date: "1784-01-01", label: "Franklin's satire", type: "history", desc: "Benjamin Franklin writes a tongue-in-cheek essay suggesting Parisians could save candles by waking at dawn. He means it as a joke. It is later cited, without irony, in favour of daylight saving." },
+  { date: "1859-09-01", label: "Carrington event", type: "solar", severity: "G5+", desc: "The most powerful geomagnetic storm on record. Telegraph systems caught fire. Operators received electric shocks. Auroras visible at the equator." },
   { date: "1884-01-01", label: "GMT standardised", type: "history", desc: "The International Meridian Conference establishes Greenwich Mean Time as the global baseline. Before this, every town kept its own local solar time." },
-  { date: "1905-01-01", label: "Einstein: Special Relativity", type: "history", desc: "Time is not a fixed background. It bends, stretches, and slows depending on speed and gravity. Every clock in the universe runs at its own pace." },
-  { date: "1916-01-01", label: "DST first adopted", type: "history", desc: "Germany and Britain introduce Daylight Saving Time to reduce wartime coal consumption. The argument has not meaningfully improved since." },
-  { date: "1921-05-15", label: "New York Railroad Storm", type: "solar", severity: "G5+", desc: "One of the largest geomagnetic storms of the 20th century. Telegraph and telephone systems across North America and Europe severely disrupted." },
-  { date: "1938-01-21", label: "Great Aurora Storm", type: "solar", severity: "G5", desc: "Visible as far south as Portugal. Disrupted radio and early aviation navigation. One of the largest storms of the pre-Space Age era." },
-  { date: "1958-02-10", label: "Feb 1958 Superstorm", type: "solar", severity: "G5", desc: "One of the largest storms of the Space Age. Widespread power and communications disruptions across Canada and the northern US." },
-  { date: "1971-01-01", label: "Hafele-Keating experiment", type: "history", desc: "Atomic clocks flown around the world confirm relativistic time dilation. Moving clocks really do run slow. The universe doesn't care about your schedule." },
-  { date: "1972-08-04", label: "Aug 1972 Storm", type: "solar", severity: "G5", desc: "Caused accidental detonation of US naval mines off Vietnam due to magnetic field disruption. Also knocked out AT&T long-lines communications." },
-  { date: "1989-03-13", label: "Quebec Blackout", type: "solar", severity: "G5", desc: "Knocked out power across Quebec for 9 hours. 6 million people without electricity. Auroras visible in Texas. Transformer damage took months to repair." },
-  { date: "1998-01-01", label: "Leap second disputes begin", type: "history", desc: "Atomic clocks now so precise they outpace Earth's irregular rotation. Leap seconds added intermittently. The internet finds this extremely inconvenient." },
-  { date: "1999-08-21", label: "First GPS week rollover", type: "computing", desc: "GPS's 10-bit week counter hits 1,024 and resets to zero. Some early receivers lose track of the date entirely. Almost nobody outside GPS engineering notices." },
-  { date: "2000-07-14", label: "Bastille Day Event", type: "solar", severity: "G5", desc: "X5.7 flare launched a CME directly at Earth. Disrupted satellites, caused radio blackouts, and produced auroras across Europe. Observed by both Voyager spacecraft." },
-  { date: "2003-10-29", label: "Halloween Storms", type: "solar", severity: "G5", desc: "17 major flares over two weeks. Two G5 events. The X28 flare on Nov 4 may be the largest ever measured. Power grid fluctuations across Europe and North America." },
+  { date: "1905-01-01", label: "Einstein's special relativity", type: "history", desc: "Time isn't fixed. A moving clock runs slower than one standing still." },
+  { date: "1916-01-01", label: "Daylight saving first adopted", type: "history", desc: "Germany and Britain introduce daylight saving to reduce wartime coal consumption. The argument has not meaningfully improved since." },
+  { date: "1921-05-15", label: "New York railroad storm", type: "solar", severity: "G5+", desc: "One of the largest geomagnetic storms of the 20th century. Telegraph and telephone systems across North America and Europe severely disrupted." },
+  { date: "1938-01-21", label: "Great aurora storm", type: "solar", severity: "G5", desc: "Visible as far south as Portugal. Disrupted radio and early aviation navigation. One of the largest storms of the pre-Space Age era." },
+  { date: "1958-02-10", label: "February 1958 superstorm", type: "solar", severity: "G5", desc: "One of the largest storms of the Space Age. Widespread power and communications disruptions across Canada and the northern US." },
+  { date: "1971-01-01", label: "Hafele–Keating experiment", type: "history", desc: "Atomic clocks flown around the world confirm relativistic time dilation. Moving clocks really do run slow." },
+  { date: "1972-08-04", label: "August 1972 storm", type: "solar", severity: "G5", desc: "Caused accidental detonation of US naval mines off Vietnam due to magnetic field disruption. Also knocked out AT&T long-lines communications." },
+  { date: "1989-03-13", label: "Quebec blackout", type: "solar", severity: "G5", desc: "Knocked out power across Quebec for 9 hours, leaving 6 million people without electricity. Auroras visible in Texas. Transformer damage took months to repair." },
+  { date: "1998-01-01", label: "Leap second disputes begin", type: "history", desc: "Atomic clocks now so precise they outpace Earth's irregular rotation. Leap seconds are added now and then, and software keeps tripping over them." },
+  { date: "1999-08-21", label: "First GPS week rollover", type: "computing", desc: "GPS's 10-bit week counter hits 1,024 and resets to zero. Some early receivers lose track of the date entirely. Hardly anyone else notices." },
+  { date: "2000-07-14", label: "Bastille Day event", type: "solar", severity: "G5", desc: "X5.7 flare launched a CME directly at Earth. Disrupted satellites, caused radio blackouts, and produced auroras across Europe. Observed by both Voyager spacecraft." },
+  { date: "2003-10-29", label: "Halloween storms", type: "solar", severity: "G5", desc: "17 major flares over two weeks. Two G5 events. The X28 flare on 4 November may be the largest ever measured. Power grid fluctuations across Europe and North America." },
   { date: "2011-10-14", label: "tz database saved by ICANN", type: "computing", desc: "Weeks after a lawsuit over unrelated astrology data forced the timezone database's mailing list and file server offline, ICANN takes over stewardship. The case is dropped the following February." },
-  { date: "2012-07-23", label: "Near Miss (Carrington-class)", type: "solar", severity: "G5+", desc: "A CME erupted but missed Earth by 9 days. Scientists estimate it would have caused $2 trillion in damage to global infrastructure if it had hit." },
-  { date: "2015-03-17", label: "St Patrick's Day Storm", type: "solar", severity: "G4", desc: "The strongest storm of Solar Cycle 24. Disrupted GPS signals globally and produced auroras visible across the UK and northern US." },
-  { date: "2017-09-06", label: "X9.3 Flare", type: "solar", severity: "G3", desc: "Largest solar flare of Solar Cycle 24. Significant radio blackouts across Europe, Africa, and the Atlantic. GPS and navigation affected." },
-  { date: "2019-04-06", label: "Second GPS week rollover", type: "computing", desc: "The 1,024-week counter resets again. A KLM flight is delayed by faulty flight-management software, New York's public wireless network crashes, and Honda dashboards and GoPro drones quietly forget what year it is." },
+  { date: "2012-07-23", label: "Near miss (Carrington-class)", type: "solar", severity: "G5+", desc: "A CME erupted but missed Earth by 9 days. Scientists estimate it would have caused $2 trillion in damage to global infrastructure if it had hit." },
+  { date: "2015-03-17", label: "St Patrick's Day storm", type: "solar", severity: "G4", desc: "The strongest storm of Solar Cycle 24. Disrupted GPS signals globally and produced auroras visible across the UK and northern US." },
+  { date: "2017-09-06", label: "X9.3 flare", type: "solar", severity: "G3", desc: "Largest solar flare of Solar Cycle 24. Significant radio blackouts across Europe, Africa, and the Atlantic. GPS and navigation affected." },
+  { date: "2019-04-06", label: "Second GPS week rollover", type: "computing", desc: "The 1,024-week counter resets again. A KLM flight is delayed by faulty flight-management software, New York's public wireless network crashes, and some Honda dashboards and GoPro drones forget what year it is." },
   { date: "2022-11-18", label: "Leap seconds voted out", type: "computing", desc: "The General Conference on Weights and Measures resolves to stop inserting leap seconds by 2035, after tech companies lobbied that the correction causes more outages than it prevents." },
-  { date: "2024-05-10", label: "Gannon Storm", type: "solar", severity: "G5", desc: "Strongest geomagnetic storm since 2003. Auroras visible across the UK and as far south as Florida. GPS errors disrupted automated farm equipment. Radio blackouts affected aviation." },
+  { date: "2024-05-10", label: "Gannon storm", type: "solar", severity: "G5", desc: "Strongest geomagnetic storm since 2003. Auroras visible across the UK and as far south as Florida. GPS errors disrupted automated farm equipment. Radio blackouts affected aviation." },
 ];
 
-/* The G-scale is NOAA's, and a bare "G4" means nothing to most readers, so
-   each rating carries what it actually is. The colours used to live here as
-   five hexes read into three inline styles per row — a palette of the
-   timeline's own that no theme could reach. They are classes now; see
-   .td-sev in the stylesheet. */
+/* NOAA's G-scale, with a plain note per rating for the tooltip. */
 const SEVERITY = {
-  "G5+": { cls: "g5plus", note: "Carrington-class — beyond the top of the scale" },
-  "G5":  { cls: "g5",     note: "Extreme — grid collapse and satellite damage" },
-  "G4":  { cls: "g4",     note: "Severe — voltage control problems, GPS degraded" },
-  "G3":  { cls: "g3",     note: "Strong — surface charging, navigation errors" },
-  "G2":  { cls: "g2",     note: "Moderate — high-latitude power systems affected" },
+  "G5+": { cls: "g5plus", note: "Carrington-class, beyond the top of the scale" },
+  "G5":  { cls: "g5",     note: "Extreme: grid collapse and satellite damage" },
+  "G4":  { cls: "g4",     note: "Severe: voltage control problems, GPS degraded" },
+  "G3":  { cls: "g3",     note: "Strong: surface charging, navigation errors" },
+  "G2":  { cls: "g2",     note: "Moderate: high-latitude power systems affected" },
 };
 
 // ─────────────────────────────────────────────────────────────
 // STYLES
+// Fonts are loaded in index.html. Keep comments out of this string:
+// it ships in the bundle as-is.
 // ─────────────────────────────────────────────────────────────
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
 
-  /* Colour tokens. The names are this file's own, so no rule below had to
-     change; the values come from obvious (ds/css/themes/dissonance.css),
-     which is the same source designedbytrev and the condiment gallery read.
-     Secondary text stays #9db5cc, which is WCAG AA on #04060d. */
   :root{
     --bg0:var(--ds-color-bg);
     --bg1:var(--ds-color-bg-alt);
@@ -288,476 +282,186 @@ const styles = `
     --amber-hi:var(--ds-color-accent-hover);
     --cold:var(--ds-color-info);
     --green:var(--ds-color-success);
-
-    /* The starfield is app art rather than system colour, but it should
-       still move when the theme does. Both are read out of here by the
-       canvas at mount — see Starfield — so the warp is lit by the same
-       lamp as everything else instead of two hexes nobody would think to
-       change. */
     --star-cold:color-mix(in srgb,var(--ds-color-text) 70%,var(--ds-color-info));
-    /* The accent on its own is a more saturated orange than the field
-       wants — the occasional warm star should read as gold, not as a flare.
-       Mixed back toward the text colour it lands within a couple of points
-       of the 220,185,130 this used to hard-code, and still moves if the
-       theme's lamp does. */
     --star-warm:color-mix(in srgb,var(--ds-color-accent-hover) 70%,var(--ds-color-text));
   }
 
-  /* Reduced motion, focus rings, tap highlight and selection all come from
-     ds/css/base.css now — one definition for the whole family. The shared
-     block also zeroes animation-delay, which this one did not: staggered
-     entrances lean on delay, so killing only the duration left someone who
-     asked for less motion waiting out an empty screen anyway. */
+  .t-tt-wrap:hover .t-tt,.t-tt-wrap:focus-within .t-tt{opacity:1;transform:translateY(0) scale(1)}
+  .t-tt{background:var(--ds-color-surface-raised);border-color:var(--ds-color-border);color:var(--ds-color-text-dim);font-family:var(--ds-font-sans);font-size:var(--ds-type-label-size);box-shadow:0 12px 26px -14px var(--ds-color-shadow-color)}
+  .t-think{--think-base:var(--ds-color-text-muted);--think-highlight:var(--ds-color-text)}
+  .t-stagger{--stagger-dur:var(--ds-duration-slow);--stagger-ease:var(--ds-ease-out)}
+  .t-stagger .t-stagger-line:nth-child(2){transition-delay:var(--stagger-stagger)}
+  .t-stagger .t-stagger-line:nth-child(3){transition-delay:calc(var(--stagger-stagger) * 2)}
 
-  /* One entrance for the two things that arrive on a state change rather
-     than on scroll — the calculator's result and a timeline row. The system
-     covers scroll reveals (t-reveal) and staggered lines (t-stagger); a
-     plain mount fade is the app's own, so it is defined once here instead
-     of five times inline. */
-  @keyframes td-enter{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes pulse{0%,100%{opacity:0.45}50%{opacity:1}}
+  @keyframes td-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;box-shadow:0 0 6px color-mix(in srgb,var(--amber-hi) 60%,transparent);width:100%}
+  .td-label{font-family:var(--ds-font-sans);font-size:var(--ds-type-label-size);line-height:var(--ds-type-label-leading);font-weight:var(--ds-type-label-weight);letter-spacing:0}
+  .td-num{font-variant-numeric:tabular-nums}
 
-  .td-root{background:var(--bg0);color:var(--text-primary);font-family:var(--ds-font-display);font-weight:400;min-height:100vh;overflow-x:hidden;position:relative}
+  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;width:100%}
+
+  .td-root{background:var(--bg0);color:var(--text-primary);font-family:var(--ds-font-sans);font-size:var(--ds-type-body-size);line-height:var(--ds-type-body-leading);font-weight:400;min-height:100vh;overflow-x:hidden;position:relative}
   .td-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
   .td-main{position:relative;z-index:2}
 
-  .td-banner{background:color-mix(in srgb,var(--bg1) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0.6rem 1.4rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;font-family:var(--ds-font-mono);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-dim)}
-  .td-live{color:var(--amber-hi)}
+  .td-banner{background:color-mix(in srgb,var(--bg1) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0.6rem 1.4rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;color:var(--text-dim)}
+  .td-live{color:var(--amber-hi);font-variant-numeric:tabular-nums}
 
-  /* ── HERO ──
-     The five lines are .t-stagger from the design system rather than five
-     hand-written fadeUp delays. The component's own cadence is 40ms, which
-     is right for a headline and a subtitle arriving together and wrong for
-     this — the hero is meant to unfold, not appear. --stagger-stagger is
-     the knob for exactly that, so the pacing is a variable here instead of
-     a keyframe per element. */
   .td-hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 1.5rem 5rem;position:relative;--stagger-stagger:300ms}
   .td-hero-lines{display:flex;flex-direction:column;align-items:center}
-  .td-eyebrow{font-family:var(--ds-font-mono);font-size:0.78rem;letter-spacing:0.04em;color:var(--text-secondary);margin-bottom:2rem}
-  .td-title{font-size:clamp(3rem,16vw,7rem);font-weight:400;line-height:0.95;letter-spacing:-0.02em;color:var(--text-primary)}
+  .td-title{font-family:var(--ds-font-display);font-size:clamp(3rem,16vw,7rem);font-weight:400;line-height:0.95;letter-spacing:-0.02em;color:var(--text-primary)}
   .td-title-em{font-style:italic;color:var(--amber-hi);display:block}
-  .td-sub{font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:500px;line-height:1.8;margin-top:1.8rem;font-style:italic}
+  .td-sub{font-family:var(--ds-font-display);font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:520px;line-height:1.8;margin-top:1.8rem;font-style:italic}
   .td-clock-wrap{margin-top:2rem;position:relative}
-  .td-clock-caption{font-family:var(--ds-font-mono);font-size:0.65rem;letter-spacing:0.04em;color:var(--text-dim);text-align:center;margin-top:0.6rem}
-  /* The constellation clock was thirteen rgba() literals inlined onto SVG
-     attributes — its own private palette, invisible to the theme. SVG
-     presentation attributes can't take var(), so the colours move here and
-     the elements carry classes instead. Star brightness stays an attribute,
-     because it varies per star and is opacity rather than colour. */
-  .td-clock{overflow:visible;filter:drop-shadow(0 0 30px color-mix(in srgb,var(--cold) 12%,transparent))}
+  .td-clock{overflow:visible}
   .td-clock-rim{fill:none;stroke:color-mix(in srgb,var(--border-hi) 25%,transparent);stroke-width:0.5;stroke-dasharray:2 6}
   .td-clock-const{stroke:color-mix(in srgb,var(--text-dim) 12%,transparent);stroke-width:0.6}
   .td-clock-hour{stroke:color-mix(in srgb,var(--text-primary) 35%,transparent);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:3 5}
   .td-clock-min{stroke:color-mix(in srgb,var(--amber-hi) 45%,transparent);stroke-width:0.9;stroke-linecap:round;stroke-dasharray:1 4}
   .td-clock-star{fill:var(--star-cold)}
-  .td-clock-sec{fill:var(--amber-hi);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--amber-hi) 80%,transparent))}
+  .td-clock-sec{fill:var(--amber-hi)}
   .td-clock-halo{fill:none;stroke:color-mix(in srgb,var(--amber-hi) 25%,transparent);stroke-width:0.8}
-  .td-clock-centre{fill:color-mix(in srgb,var(--text-primary) 90%,transparent);filter:drop-shadow(0 0 5px var(--star-cold))}
-  /* The hint sits outside the stagger block so it can hold its own pulse
-     without the entrance transition fighting the animation. */
-  .td-scroll-hint{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-dim);animation:pulse 3s ease-in-out 3s infinite;white-space:nowrap}
-  /* The hint is one line on a wide screen and wider than a phone, so
-     below that it wraps rather than running off both edges. */
-  @media(max-width:620px){.td-scroll-hint{white-space:normal;max-width:84vw;text-align:center;line-height:1.6}}
+  .td-clock-centre{fill:color-mix(in srgb,var(--text-primary) 90%,transparent)}
 
-  /* ── CALCULATOR ── */
   .td-calc-wrap{background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
   .td-calc-inner{max-width:900px;margin:0 auto;padding:clamp(3rem,8vh,5rem) clamp(1.2rem,5vw,4rem)}
-  .td-calc-header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
-  .td-calc-num{font-family:var(--ds-font-mono);font-size:0.75rem;color:var(--amber);letter-spacing:0.04em;white-space:nowrap}
-  .td-calc-line{flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent)}
-  .td-calc-title{font-size:clamp(1.8rem,7vw,3rem);font-weight:400;color:var(--text-primary);line-height:1.1;margin-bottom:0.8rem}
-  .td-calc-title em{font-style:italic;color:var(--amber-hi)}
-  .td-calc-sub{font-size:clamp(1rem,3vw,1.1rem);color:var(--text-secondary);line-height:1.8;margin-bottom:2rem;max-width:560px;font-style:italic}
 
-  /* Steps */
+  .td-h2{font-family:var(--ds-font-display);font-size:clamp(1.8rem,7vw,3rem);font-weight:400;color:var(--text-primary);line-height:1.1;margin-bottom:0.8rem}
+  .td-h2 em{font-style:italic;color:var(--amber-hi)}
+  .td-intro{font-family:var(--ds-font-display);font-size:clamp(1rem,3vw,1.1rem);color:var(--text-secondary);line-height:1.85;margin-bottom:2rem;max-width:620px;font-style:italic}
+
   .td-steps{display:flex;flex-direction:column;gap:2rem;margin-bottom:2rem}
-  .td-step-label{font-family:var(--ds-font-mono);font-size:0.75rem;letter-spacing:0.04em;color:var(--text-secondary);margin-bottom:0.6rem;display:flex;align-items:center;gap:0.6rem}
-  .td-step-label::before{content:attr(data-n);display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:1.5rem;border:1px solid var(--border-hi);border-radius:50%;font-size:0.55rem;color:var(--amber);flex-shrink:0}
+  .td-step-label{color:var(--text-secondary);margin-bottom:0.6rem;display:flex;align-items:center;gap:0.6rem}
+  .td-step-label::before{content:attr(data-n);display:inline-flex;align-items:center;justify-content:center;width:1.5rem;height:1.5rem;border:1px solid var(--border-hi);border-radius:50%;font-size:var(--ds-text-xs);font-variant-numeric:tabular-nums;color:var(--amber);flex-shrink:0}
 
   .td-input-row{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap}
   .td-input-group{display:flex;flex-direction:column;gap:0.4rem;flex:1;min-width:160px}
-  /* The fields are .t-input from ds/css/components/field.css — the same
-     assembly as the password gate on designedbytrev. The well, the
-     hairline, the focus tint, the chevron, the error shake and the message
-     that fades in under it all come from there, so what is left here is the
-     width and the one thing the shared rules can't know: that this app is
-     dark, so the date picker's own glyph needs inverting or it renders
-     black on near-black. */
   .td-input-group .t-input{width:100%;--t-input-picker-filter:invert(0.6)}
   .td-input-group select{color-scheme:dark}
-  .td-error-msg{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em}
 
   .td-pills{display:flex;flex-wrap:wrap;gap:0.5rem}
-  /* .t-chip carries the shape, the hover and the on state. These options
-     run to a full sentence each, so they align left and wrap rather than
-     centring like a nav chip would. */
-  .td-pill{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;line-height:1.4;text-align:left;justify-content:flex-start;--t-chip-pad:0.55rem 0.85rem;--t-chip-radius:var(--ds-radius-sm)}
+  .td-pill{line-height:1.4;text-align:left;justify-content:flex-start;--t-chip-pad:0.55rem 0.85rem;--t-chip-radius:var(--ds-radius-sm)}
 
-  /* The button's loading and done states are .t-check-badge — the same
-     spinner-to-tick the portfolio's gate uses. It ships at 22px for a
-     48px field; this is a 0.8rem mono button, so it comes down to 15px
-     through the size variable rather than three overrides fighting the
-     flex shorthand. The tick stays green and white on purpose: the system
-     holds it out of theming so it keeps reading as a tick. */
-  .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-mono);font-size:0.8rem;letter-spacing:0.04em;padding:0.9rem 2rem;cursor:pointer;transition:background var(--ds-duration-base) ease,border-color var(--ds-duration-base) ease,color var(--ds-duration-base) ease;margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
+  .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-sans);font-size:var(--ds-type-ui-size);font-weight:var(--ds-type-ui-weight);padding:0.85rem 1.8rem;cursor:pointer;transition:background var(--ds-duration-base) var(--ds-ease-out),border-color var(--ds-duration-base) var(--ds-ease-out),color var(--ds-duration-base) var(--ds-ease-out);margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
   .td-calc-btn:hover{background:color-mix(in srgb,var(--ds-color-accent) 12%,transparent)}
   .td-calc-btn[data-state="loading"],.td-calc-btn[data-state="done"]{cursor:default}
   .td-calc-btn[data-state="done"]{border-color:var(--green);color:var(--green)}
-  .td-calc-btn .t-check-badge{--check-size:15px;--check-ring-w:2px}
-  /* .t-think shimmers the label while the sum runs. Its sizer holds the
-     width of the longest state so the button doesn't resize mid-transition. */
-  .td-calc-btn .t-think{font:inherit;letter-spacing:inherit}
+  .td-calc-btn .t-check-badge{width:15px;height:15px;flex:0 0 15px;--check-ring-w:2px}
+  .td-calc-btn .t-think{font:inherit}
 
-  /* Results */
   .td-result{animation:td-enter var(--ds-duration-slower) var(--ds-ease-out) both}
-  .td-age-display{font-size:clamp(0.82rem,2.2vw,0.9rem);color:var(--text-secondary);font-family:var(--ds-font-mono);letter-spacing:0.04em;margin-bottom:2rem;line-height:2.4}
-  .td-age-display strong{color:var(--text-primary);font-weight:400}
+  .td-age-display{color:var(--text-secondary);margin-bottom:2rem;line-height:2}
+  .td-age-display strong{color:var(--text-primary);font-weight:500}
   .td-age-display .amber{color:var(--amber-hi)}
 
-  .td-stolen-hero{background:linear-gradient(135deg,var(--bg2),color-mix(in srgb,var(--amber) 5%,transparent));border:1px solid var(--amber);padding:2rem;margin-bottom:1.5px;text-align:center}
-  .td-stolen-num{font-size:clamp(4rem,18vw,8rem);font-weight:400;color:var(--amber-hi);line-height:1;letter-spacing:-0.03em}
-  .td-stolen-label{font-family:var(--ds-font-mono);font-size:0.75rem;letter-spacing:0.04em;color:var(--text-secondary);margin-top:0.5rem}
-  .td-stolen-sub{font-size:clamp(1.05rem,3.5vw,1.25rem);color:var(--text-secondary);margin-top:1rem;line-height:1.7;font-style:italic}
+  .td-stolen-hero{background:var(--bg2);border:1px solid var(--amber);padding:2rem;margin-bottom:1.5px;text-align:center}
+  .td-stolen-num{font-family:var(--ds-font-display);font-size:clamp(4rem,18vw,8rem);font-weight:400;color:var(--amber-hi);line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+  .td-stolen-label{color:var(--text-secondary);margin-top:0.75rem}
+  .td-stolen-sub{color:var(--text-secondary);margin-top:0.75rem}
 
-  .td-no-dst{background:var(--bg2);border:1px solid var(--border);padding:1.5rem;text-align:center;margin-bottom:1.5px}
-  .td-no-dst p{font-size:clamp(1rem,3vw,1.2rem);color:var(--text-secondary);line-height:1.8;font-style:italic}
-  .td-no-dst p strong{color:var(--text-primary);font-weight:400}
+  .td-no-dst{background:var(--bg2);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.5px}
+  .td-no-dst p{color:var(--text-secondary)}
+  .td-no-dst strong{color:var(--text-primary);font-weight:500}
 
   .td-metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5px;margin-bottom:1.5px}
   @media(min-width:600px){.td-metric-grid{grid-template-columns:repeat(4,1fr)}}
   .td-metric{background:var(--bg2);border:1px solid var(--border);padding:1.2rem;text-align:center}
-  /* .t-digit-group pops each character of the figure in with a short
-     overshoot — see ds-proposals/digit.css. The metrics are the right
-     place for it: eight small numbers arriving at once would be noise at
-     the hero's scale and read as a result landing at this one. */
-  .td-metric-val{font-size:clamp(1.1rem,4vw,1.8rem);font-weight:400;color:var(--text-primary);letter-spacing:-0.02em;line-height:1}
+  .td-metric-val{font-size:clamp(1.1rem,4vw,1.6rem);font-weight:500;color:var(--text-primary);line-height:1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
   .td-metric-val.amber{color:var(--amber-hi)}
   .td-metric-val.cold{color:var(--cold)}
   .td-metric-val.mist{color:var(--text-secondary)}
   .td-metric-val.green{color:var(--green)}
-  .td-metric-lbl{font-family:var(--ds-font-mono);font-size:0.65rem;letter-spacing:0.04em;color:var(--text-secondary);margin-top:0.5rem;line-height:1.5}
+  .td-metric-lbl{color:var(--text-secondary);margin-top:0.5rem}
 
   .td-insight{background:var(--bg2);border:1px solid var(--border);padding:1.8rem;margin-bottom:1.5px}
-  .td-insight p{font-size:clamp(1rem,3vw,1.08rem);color:var(--text-secondary);line-height:1.9}
+  .td-insight p{color:var(--text-secondary);line-height:1.75;max-width:62ch}
   .td-insight p+p{margin-top:1rem}
-  .td-insight strong{color:var(--text-primary);font-weight:400}
+  .td-insight strong{color:var(--text-primary);font-weight:500}
   .td-insight .amber{color:var(--amber-hi)}
   .td-insight .cold{color:var(--cold)}
   .td-insight .green{color:var(--green)}
 
-  .td-next-steal{background:linear-gradient(135deg,var(--bg2),color-mix(in srgb,var(--amber) 6%,transparent));border:1px solid var(--border-hi);padding:1.2rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
-  .td-next-label{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;color:var(--text-secondary)}
-  .td-next-val{font-size:1.3rem;color:var(--text-primary);margin-top:0.2rem}
-  .td-next-days{font-family:var(--ds-font-mono);font-size:0.75rem;color:var(--amber);letter-spacing:0.04em;text-align:right}
+  .td-next-steal{background:var(--bg2);border:1px solid var(--border-hi);padding:1.2rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+  .td-next-label{color:var(--text-secondary)}
+  .td-next-val{font-family:var(--ds-font-display);font-size:1.3rem;color:var(--text-primary);margin-top:0.2rem}
+  .td-next-days{color:var(--amber-hi);text-align:right}
 
-  .td-reset-btn{background:none;border:none;color:var(--text-dim);font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;cursor:pointer;margin-top:1.5rem;padding:0;transition:color var(--ds-duration-base) ease}
+  .td-reset-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;margin-top:1.5rem;padding:0;text-decoration:underline;text-underline-offset:3px;transition:color var(--ds-duration-base) var(--ds-ease-out)}
   .td-reset-btn:hover{color:var(--text-secondary)}
 
-  /* STATS */
   .td-stats{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:2.5rem 1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem 1rem;text-align:center}
   @media(min-width:600px){.td-stats{grid-template-columns:repeat(4,1fr)}}
-  .td-stat-val{font-size:clamp(2rem,8vw,3rem);font-weight:400;color:var(--amber-hi);letter-spacing:-0.02em;line-height:1}
-  .td-stat-label{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-secondary);margin-top:0.5rem;line-height:1.5}
+  .td-stat-val{font-family:var(--ds-font-display);font-size:clamp(2rem,8vw,3rem);font-weight:400;color:var(--amber-hi);letter-spacing:-0.02em;line-height:1}
+  .td-stat-label{color:var(--text-secondary);margin-top:0.6rem}
 
-  /* SECTION */
   .td-section{padding:clamp(3rem,8vh,6rem) clamp(1.2rem,5vw,4rem);max-width:900px;margin:0 auto}
-  .td-section-header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
-  .td-section-num{font-family:var(--ds-font-mono);font-size:0.75rem;color:var(--amber);letter-spacing:0.04em;white-space:nowrap}
-  .td-section-line{flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent)}
-  .td-section-title{font-size:clamp(1.8rem,7vw,3rem);font-weight:400;color:var(--text-primary);line-height:1.1;margin-bottom:0.8rem}
-  .td-section-title em{font-style:italic;color:var(--amber-hi)}
-  .td-section-intro{font-size:clamp(1rem,3vw,1.1rem);color:var(--text-secondary);line-height:1.85;margin-bottom:2rem;font-style:italic}
 
-  /* DST VISUAL */
   .td-dst{background:var(--bg2);border:1px solid var(--border);padding:1.5rem;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;margin-bottom:2rem;text-align:center}
-  .td-dst-big{font-size:clamp(2rem,8vw,3.5rem);font-weight:400;color:var(--text-primary);letter-spacing:-0.02em;line-height:1}
+  .td-dst-big{font-size:clamp(2rem,8vw,3.5rem);font-weight:500;color:var(--text-primary);line-height:1;font-variant-numeric:tabular-nums}
   .td-dst-big.stolen{color:var(--amber-hi)}
-  .td-dst-label{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-secondary);margin-top:0.4rem}
-  .td-dst-arrow{display:flex;flex-direction:column;align-items:center;gap:0.2rem;color:var(--amber);font-size:1.2rem}
-  .td-dst-arrow span{font-family:var(--ds-font-mono);font-size:0.64rem;letter-spacing:0.04em;color:var(--text-dim)}
-  .td-dst-arrow strong{color:var(--amber-hi);font-weight:400;font-size:0.75rem;font-family:var(--ds-font-mono)}
+  .td-dst-label{color:var(--text-secondary);margin-top:0.5rem}
+  .td-dst-mid{color:var(--text-dim)}
 
-  /* CARDS
-     Each card is wrapped in .t-tilt / .t-tilt-card — see
-     ds-proposals/tilt.css. The recipe's peak lean is 14 degrees, which on
-     a page about slipping time reads as a toy; 5 is enough to register as
-     a surface catching the light. The glare is the theme's amber rather
-     than the recipe's white, so it is the same lamp lighting everything
-     else, at a third of the recipe's strength because a bright sweep over
-     body copy makes it unreadable for the length of the sweep. */
   .td-cards{display:grid;grid-template-columns:1fr;gap:1.5px}
   @media(min-width:600px){.td-cards{grid-template-columns:1fr 1fr}}
-  .td-tilt{display:flex;--tilt-glare-color:var(--amber-hi);--tilt-glare-opacity:0.11;--tilt-touch:auto}
-  .td-tilt>.t-tilt-card{flex:1;display:flex}
-  .td-card{background:linear-gradient(135deg,var(--bg1),var(--bg2));border:1px solid var(--border);padding:1.8rem;flex:1}
-  .td-card-tag{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--amber);margin-bottom:0.6rem;display:block}
-  .td-card-title{font-size:clamp(1.1rem,4vw,1.35rem);font-weight:400;color:var(--text-primary);margin-bottom:0.75rem;line-height:1.3}
-  .td-card-body{font-size:clamp(0.95rem,2.8vw,1.02rem);line-height:1.8;color:var(--text-secondary)}
-  /* .t-link supplies the colour, the hairline and the hover — the same
-     one the LinkedIn link on designedbytrev uses. */
-  .td-card-link{display:inline-flex;align-items:center;gap:0.3rem;margin-top:1rem;font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;position:relative;z-index:1}
+  .td-card{background:var(--bg1);border:1px solid var(--border);padding:1.8rem}
+  .td-card-title{font-family:var(--ds-font-display);font-size:clamp(1.1rem,4vw,1.3rem);font-weight:400;color:var(--text-primary);margin-bottom:0.75rem;line-height:1.3}
+  .td-card-body{line-height:1.7;color:var(--text-secondary)}
+  .td-card-link{display:inline-block;margin-top:1rem}
 
-  /* REL */
-  .td-rel-grid{display:grid;grid-template-columns:1fr;gap:1.5px}
-  @media(min-width:600px){.td-rel-grid{grid-template-columns:1fr 1fr}}
-  .td-rel-card{background:var(--bg1);border:1px solid var(--border);padding:1.8rem;position:relative;flex:1}
-  .td-rel-card.hl{border-color:var(--amber);background:linear-gradient(135deg,var(--bg1),color-mix(in srgb,var(--amber) 4%,transparent))}
-  .td-rel-num{font-size:4rem;font-weight:400;color:var(--border);line-height:1;position:absolute;top:0.5rem;right:1rem;pointer-events:none}
+  .td-quote{padding:clamp(3rem,6vh,5rem) clamp(1.2rem,5vw,4rem);max-width:800px;margin:0 auto;text-align:center}
+  .td-quote p{font-family:var(--ds-font-display);font-size:clamp(1.25rem,4.5vw,2.1rem);line-height:1.55;color:var(--text-primary);font-style:italic}
+  .td-quote cite{display:block;margin-top:1.2rem;color:var(--text-secondary);font-style:normal}
 
-  /* QUOTE */
-  .td-quote{padding:clamp(3rem,6vh,5rem) clamp(1.2rem,5vw,4rem);max-width:800px;margin:0 auto;text-align:center;position:relative}
-  .td-quote-mark{font-size:8rem;line-height:0.5;color:var(--border);font-family:var(--ds-font-display);position:absolute;top:2rem;left:0.5rem;pointer-events:none}
-  .td-quote p{font-size:clamp(1.25rem,4.5vw,2.1rem);line-height:1.55;color:var(--text-primary);font-style:italic;position:relative;z-index:1}
-  .td-quote cite{display:block;margin-top:1.2rem;font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-secondary);font-style:normal}
-
-  /* ── COMBINED TIMELINE ── */
   .td-timeline{position:relative;padding-left:1.2rem}
-  .td-timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent,var(--border-hi) 10%,var(--border-hi) 90%,transparent)}
-
-  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;display:flex;flex-direction:column;gap:0;animation:td-enter var(--ds-duration-slow) var(--ds-ease-out) both}
+  .td-timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--border-hi)}
+  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;animation:td-enter var(--ds-duration-slow) var(--ds-ease-out) both}
   .td-titem-inner{padding-bottom:2rem}
 
-  /* One severity scale, declared once. It used to be a JS object of five
-     hexes read into three inline styles per row — which meant the timeline
-     had its own palette that no theme could reach and the audit counted
-     fifteen times over. --sev carries the colour and the fill, text and
-     border are mixed off it, so a row is a class and nothing else. */
-  .td-sev{--sev:var(--border-hi);font-family:var(--ds-font-mono);font-size:0.64rem;letter-spacing:0.04em;padding:0.15rem 0.4rem;border-radius:var(--ds-radius-sm);font-weight:400;color:var(--sev);background:color-mix(in srgb,var(--sev) 13%,transparent);border:1px solid color-mix(in srgb,var(--sev) 27%,transparent)}
+  .td-sev{--sev:var(--border-hi);font-family:var(--ds-font-sans);font-size:var(--ds-text-xs);font-weight:500;font-variant-numeric:tabular-nums;padding:0.1rem 0.4rem;border-radius:var(--ds-radius-sm);color:var(--sev);background:color-mix(in srgb,var(--sev) 13%,transparent);border:1px solid color-mix(in srgb,var(--sev) 27%,transparent)}
   .td-sev--g5plus{--sev:var(--ds-color-danger)}
   .td-sev--g5{--sev:var(--amber)}
   .td-sev--g4{--sev:var(--ds-color-warning)}
   .td-sev--g3{--sev:var(--cold)}
   .td-sev--g2{--sev:var(--border-hi)}
 
-  .td-tdot{position:absolute;left:-0.32rem;top:0.4rem;width:0.62rem;height:0.62rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0);transition:border-color var(--ds-duration-fast) ease,box-shadow var(--ds-duration-fast) ease}
+  .td-tdot{position:absolute;left:-0.32rem;top:0.4rem;width:0.62rem;height:0.62rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0)}
   .td-tdot.solar{border-color:var(--amber);background:var(--bg2)}
-  .td-tdot.solar.g5plus{border-color:var(--ds-color-danger);box-shadow:0 0 6px color-mix(in srgb,var(--ds-color-danger) 40%,transparent)}
-  .td-tdot.solar.g5{border-color:var(--amber);box-shadow:0 0 6px color-mix(in srgb,var(--amber) 30%,transparent)}
+  .td-tdot.solar.g5plus{border-color:var(--ds-color-danger);background:var(--ds-color-danger)}
+  .td-tdot.solar.g5{border-color:var(--amber);background:var(--amber)}
   .td-tdot.solar.g4{border-color:var(--ds-color-warning)}
   .td-tdot.solar.g3{border-color:var(--text-secondary)}
-  .td-tdot.history{border-color:var(--border-hi);background:var(--bg0)}
   .td-tdot.computing{border-color:var(--cold);background:var(--bg2)}
 
-  .td-tdate{font-family:var(--ds-font-mono);font-size:0.72rem;letter-spacing:0.04em;color:var(--text-dim);margin-bottom:0.2rem}
+  .td-tdate{color:var(--text-dim);margin-bottom:0.2rem;font-variant-numeric:tabular-nums}
   .td-tdate.solar{color:var(--amber)}
-
-  .td-trow{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem}
-  .td-ttitle{font-size:clamp(1rem,3.2vw,1.15rem);color:var(--text-primary);line-height:1.2}
-  .td-tbody{font-size:clamp(0.92rem,2.5vw,1rem);color:var(--text-secondary);line-height:1.8}
-  /* The G-scale is NOAA's and means nothing to most readers, so each badge
-     carries what its rating actually is. .t-tt is the system's tooltip —
-     which until now could not be shown at all, since nothing ever set it
-     back to opaque. See ds-proposals/fixes.css. */
+  .td-trow{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;flex-wrap:wrap}
+  .td-ttitle{font-family:var(--ds-font-display);font-weight:400;font-size:clamp(1rem,3.2vw,1.15rem);color:var(--text-primary);line-height:1.3}
+  .td-tbody{color:var(--text-secondary);line-height:1.7;max-width:62ch}
   .td-sev-wrap{display:inline-flex}
   .td-sev-wrap .t-tt{white-space:normal;width:max-content;max-width:15rem;text-align:left;line-height:1.5}
 
-  /* Timeline legend */
-  .td-legend{display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:2rem}
-  .td-legend-item{display:flex;align-items:center;gap:0.5rem;font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-secondary)}
+  .td-legend{display:flex;gap:0.6rem 1.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+  .td-legend-item{display:flex;align-items:center;gap:0.5rem;color:var(--text-secondary)}
   .td-legend-dot{width:0.6rem;height:0.6rem;border-radius:50%;border:1px solid var(--border-hi);background:var(--bg0);flex:none}
   .td-legend-dot--solar{border-color:var(--amber);background:var(--bg2)}
-  .td-legend-dot--g5{border-color:var(--amber);background:var(--bg2);box-shadow:0 0 5px color-mix(in srgb,var(--amber) 40%,transparent)}
-  .td-legend-dot--carrington{border-color:var(--ds-color-danger);background:var(--bg2);box-shadow:0 0 5px color-mix(in srgb,var(--ds-color-danger) 50%,transparent)}
+  .td-legend-dot--g5{border-color:var(--amber);background:var(--amber)}
+  .td-legend-dot--carrington{border-color:var(--ds-color-danger);background:var(--ds-color-danger)}
   .td-legend-dot--computing{border-color:var(--cold);background:var(--bg2)}
 
-  /* Solar filter */
-  .td-filter{display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
-  .td-filter-btn{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;--t-chip-pad:0.45rem 0.75rem;--t-chip-radius:var(--ds-radius-sm)}
+  .td-filter{display:flex;gap:0.5rem;margin-bottom:2rem;flex-wrap:wrap}
+  .td-filter-btn{--t-chip-pad:0.45rem 0.75rem;--t-chip-radius:var(--ds-radius-sm)}
 
-  .td-divider{height:1px;background:linear-gradient(to right,transparent,var(--border),transparent);margin:0 1.5rem}
+  .td-divider{height:1px;background:var(--border);margin:0 1.5rem}
   .td-footer{border-top:1px solid var(--border);padding:2rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.8rem}
-  .td-footer-brand{font-size:1.05rem;color:var(--text-secondary)}
+  .td-footer-brand{font-family:var(--ds-font-display);font-size:1.05rem;color:var(--text-secondary)}
   .td-footer-brand em{color:var(--amber-hi);font-style:italic}
-  .td-footer-note{font-family:var(--ds-font-mono);font-size:0.68rem;letter-spacing:0.04em;color:var(--text-dim)}
+  .td-footer-note{color:var(--text-dim)}
 `;
 
 // ─────────────────────────────────────────────────────────────
 // REACT COMPONENTS
 // ─────────────────────────────────────────────────────────────
-
-// ── WARP STARFIELD ────────────────────────────────────────────
-// Radial warp: stars born near centre, stream outward.
-// Key properties matching the reference image:
-//  - Hugely varied sizes: most are sub-pixel pinpricks, a few larger
-//  - Soft glow/blur via radial gradient (no sharp uniform circles)
-//  - Streaks that are LINES not stretched circles — thin & directional
-//  - Speed varies a lot so motion feels organic not mechanical
-//  - Overall very dark — glow is blue-white, mostly dim
-/* Canvas takes colour strings, not custom properties, so a token has to be
-   resolved to real channel values before it can be drawn with. Setting the
-   token on a throwaway element's `color` and reading it back is the reliable
-   way: the browser resolves var() and color-mix() on a real property, where
-   getPropertyValue on the custom property itself would hand back the
-   unresolved expression. */
-function readChannels(token, fallback) {
-  const probe = document.createElement("span");
-  probe.style.cssText = `position:absolute;visibility:hidden;color:var(${token})`;
-  document.documentElement.appendChild(probe);
-  const raw = getComputedStyle(probe).color;
-  probe.remove();
-  const parts = raw.match(/-?[\d.]+/g);
-  if (!parts || parts.length < 3) return fallback;
-  /* Two serialisations, and the difference is not cosmetic. A plain colour
-     comes back as `rgb(4, 6, 13)` on 0-255. A color-mix() result comes back
-     from Chromium as `color(srgb 0.71 0.83 0.90)` on 0-1 — and both star
-     colours are mixes. Rounding those floats without rescaling gives
-     1,1,1, which is black: the whole field draws and is invisible. */
-  const scale = raw.startsWith("color(") ? 255 : 1;
-  return parts.slice(0, 3).map((n) => Math.round(Number(n) * scale)).join(",");
-}
-
-function Starfield() {
-  const ref = useRef(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    const ctx    = canvas.getContext("2d");
-    let W, H, CX, CY, raf;
-
-    /* Read once at mount rather than per star per frame — 700 stars at 60fps
-       would be 42,000 style resolutions a second for two values that do not
-       change. */
-    const COLD = readChannels("--star-cold", "180,210,240");
-    const WARM = readChannels("--star-warm", "220,185,130");
-    const VOID = readChannels("--ds-color-bg", "4,6,13");
-
-    // Stars carry their own intrinsic size so the field is genuinely varied
-    const mkStar = () => {
-      // Size distribution: heavily weighted toward tiny
-      const sizeRoll = Math.random();
-      // ~70% sub-pixel, ~25% small, ~5% slightly larger
-      const baseR = sizeRoll < 0.70 ? 0.15 + Math.random() * 0.25
-                  : sizeRoll < 0.95 ? 0.4  + Math.random() * 0.55
-                  :                   0.9  + Math.random() * 1.1;
-      // Speed: wide range so near/far feel is clear
-      const speed = 0.03 + Math.pow(Math.random(), 1.6) * 0.55;
-      // Glow radius: larger stars get more glow, tiny ones almost none
-      const glowR = baseR < 0.3 ? 0 : baseR * (1.8 + Math.random() * 2.5);
-      // Colour: mostly cold blue-white, occasional warm
-      const warm  = Math.random() < 0.07;
-      return {
-        angle: Math.random() * Math.PI * 2,
-        dist:  2 + Math.random() * 8,
-        speed,
-        baseR,
-        glowR,
-        warm,
-      };
-    };
-
-    // Total star count — dense like the reference
-    const TOTAL = 700;
-    let stars = Array.from({ length: TOTAL }, mkStar);
-
-    // Pre-scatter across full diagonal so screen fills instantly
-    const resize = () => {
-      W = canvas.width  = window.innerWidth;
-      H = canvas.height = window.innerHeight;
-      CX = W / 2; CY = H / 2;
-    };
-
-    // Draw a soft glow blob — radial gradient, pure blur effect
-    const drawGlow = (x, y, r, col) => {
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0,   col);
-      g.addColorStop(0.3, col);
-      g.addColorStop(1,   col.replace(/[\d.]+\)$/, "0)"));
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = g;
-      ctx.fill();
-    };
-
-    // Initialise distances spread across screen
-    resize();
-    const initMaxDist = Math.sqrt(CX * CX + CY * CY);
-    stars.forEach(s => { s.dist = 4 + Math.random() * initMaxDist * 1.1; });
-
-    const draw = () => {
-      // Semi-transparent fill: controls how long streak ghosts linger
-      // More opaque = shorter trails (reference has medium length)
-      ctx.fillStyle = `rgba(${VOID},0.20)`;
-      ctx.fillRect(0, 0, W, H);
-
-      const maxDist = Math.sqrt(CX * CX + CY * CY);
-
-      stars.forEach((s, i) => {
-        // Acceleration tied to current distance — feels like zooming in
-        s.dist += s.speed * (1 + s.dist * 0.0055);
-
-        const x = CX + Math.cos(s.angle) * s.dist;
-        const y = CY + Math.sin(s.angle) * s.dist;
-
-        // t: 0 at origin, 1 at screen edge — drives fade-in and size growth
-        const t = Math.min(s.dist / maxDist, 1);
-
-        // Opacity: fade in gently from centre, never fully opaque for most stars
-        const maxOpac = s.baseR > 0.8 ? 0.75 : s.baseR > 0.35 ? 0.45 : 0.28;
-        const opacity = Math.min(t * 2.8, 1) * maxOpac;
-
-        // Radius grows slightly as star approaches (perspective scaling)
-        const r = s.baseR * (0.4 + t * 0.7);
-
-        const base = s.warm ? WARM : COLD;
-
-        // ── STREAK (line from prev position to current) ──
-        // Length is a fraction of current dist — grows as star moves out
-        const streakLen = s.dist * (s.baseR < 0.3 ? 0.06 : s.baseR < 0.7 ? 0.11 : 0.17);
-        const px = CX + Math.cos(s.angle) * (s.dist - streakLen);
-        const py = CY + Math.sin(s.angle) * (s.dist - streakLen);
-
-        const sg = ctx.createLinearGradient(px, py, x, y);
-        sg.addColorStop(0, `rgba(${base},0)`);
-        sg.addColorStop(1, `rgba(${base},${(opacity * 0.8).toFixed(3)})`);
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(x, y);
-        ctx.strokeStyle = sg;
-        // Line width varies with star size — tiny ones leave hair-thin trails
-        ctx.lineWidth = Math.max(0.2, r * 0.65);
-        ctx.stroke();
-
-        // ── GLOW BLOB (only for non-tiny stars) ──
-        if (s.glowR > 0 && opacity > 0.05) {
-          drawGlow(x, y, r + s.glowR * t, `rgba(${base},${(opacity * 0.35).toFixed(3)})`);
-        }
-
-        // ── STAR CORE dot ──
-        ctx.beginPath();
-        ctx.arc(x, y, Math.max(0.15, r), 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${base},${opacity.toFixed(3)})`;
-        ctx.fill();
-
-        // Reset when off-screen
-        if (x < -40 || x > W + 40 || y < -40 || y > H + 40) {
-          const ns = mkStar();
-          stars[i] = ns;
-        }
-      });
-
-      raf = requestAnimationFrame(draw);
-    };
-
-    ctx.fillStyle = `rgb(${VOID})`;
-    ctx.fillRect(0, 0, W, H);
-    // Respect reduced-motion: paint one static field instead of a
-    // perpetual rAF warp — a full-screen zooming starfield is exactly
-    // the kind of motion that preference exists to suppress.
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      stars.forEach(s => { s.dist = Math.random() * Math.sqrt(CX * CX + CY * CY); });
-      draw();
-      cancelAnimationFrame(raf);
-    } else {
-      draw();
-    }
-    window.addEventListener("resize", resize);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
-  return <canvas ref={ref} className="td-canvas" />;
-}
 
 // ── CONSTELLATION CLOCK ───────────────────────────────────────
 // The clock face is hidden. Instead, 12 constellation-like star
@@ -891,24 +595,6 @@ function ScrollProgress() {
   return <div className="td-progress" style={{ transform: `scaleX(${pct})` }} />;
 }
 
-/* .t-reveal from ds/css/components/reveal.css, in place of the app's own
-   copy of the same three rules. The no-IntersectionObserver branch is the
-   system's documented behaviour — everything shows rather than staying
-   invisible — which the local version did not have: without it a browser
-   missing the observer got a blank page rather than an unanimated one. */
-function Reveal({children}) {
-  const ref=useRef(null);
-  useEffect(()=>{
-    const el=ref.current;
-    if(!el) return;
-    if(typeof IntersectionObserver==="undefined"){el.classList.add("in");return;}
-    const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){el.classList.add("in");obs.unobserve(el);}});},{threshold:0.06});
-    obs.observe(el);
-    return()=>obs.disconnect();
-  },[]);
-  return <div className="t-reveal" ref={ref}>{children}</div>;
-}
-
 /* t-stagger plays on .is-shown rather than on mount, so the class goes on a
    frame later — set in the same paint as the markup and there is no
    from-state for the browser to transition out of. */
@@ -921,99 +607,24 @@ function Stagger({className="",children}) {
   return <div className={`t-stagger ${className}`} ref={ref}>{children}</div>;
 }
 
-/* The lean is deliberately shallow. The recipe suggests 10-16 degrees and
-   demos up to 40; on a page about time quietly going missing, anything that
-   reads as a toy is wrong, and 5 is enough to register as a surface catching
-   the light.
-
-   Mouse only, on purpose. The tilt also works on touch, but only with
-   touch-action:none on the wrapper, which takes the page's scroll away
-   everywhere a card sits under the thumb. On a grid of reading cards that is
-   a bad trade, so --tilt-touch stays auto and touch pointers are ignored. */
-const TILT_MAX = 5;
-
-function TiltCard({children}) {
-  const wrap=useRef(null), card=useRef(null);
-  useEffect(()=>{
-    const w=wrap.current, c=card.current;
-    if(!w||!c) return;
-    const reduce=window.matchMedia("(prefers-reduced-motion: reduce)");
-    const reset=()=>{
-      w.classList.remove("is-hover");
-      c.classList.remove("is-tilting");
-      c.style.setProperty("--tilt-rx","0deg");
-      c.style.setProperty("--tilt-ry","0deg");
-    };
-    /* Tracked on the outer wrapper, which never transforms. Track the card
-       that rotates and its edges slip out from under the cursor near the
-       borders, flickering the hover on and off. */
-    const track=(e)=>{
-      if(e.pointerType!=="mouse"||reduce.matches) return;
-      const r=w.getBoundingClientRect();
-      const px=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
-      const py=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
-      w.classList.add("is-hover");
-      c.classList.add("is-tilting");
-      c.style.setProperty("--tilt-ry",`${((px-0.5)*TILT_MAX).toFixed(2)}deg`);
-      c.style.setProperty("--tilt-rx",`${((0.5-py)*TILT_MAX).toFixed(2)}deg`);
-      c.style.setProperty("--tilt-gx",`${(px*100).toFixed(1)}%`);
-      c.style.setProperty("--tilt-gy",`${(py*100).toFixed(1)}%`);
-    };
-    const leave=(e)=>{if(e.pointerType==="mouse") reset();};
-    w.addEventListener("pointermove",track);
-    w.addEventListener("pointerleave",leave);
-    return()=>{
-      w.removeEventListener("pointermove",track);
-      w.removeEventListener("pointerleave",leave);
-    };
-  },[]);
-  return (
-    <div className="t-tilt td-tilt" ref={wrap}>
-      <div className="t-tilt-card" ref={card}>
-        {children}
-        <div className="t-tilt-glare"/>
-      </div>
-    </div>
-  );
-}
-
-/* One span per character so each can carry its own delay. The last two get
-   the stagger attributes the component reads, so a unit suffix or a percent
-   sign arrives just behind the figure rather than as part of it. */
-function Digits({value}) {
-  const chars=[...String(value)];
-  return (
-    <span className="t-digit-group is-animating">
-      {chars.map((ch,i)=>(
-        <span className="t-digit" key={i}
-          data-stagger={i===chars.length-2?"1":i===chars.length-1?"2":undefined}>
-          {ch===" "?"\u00a0":ch}
-        </span>
-      ))}
-    </span>
-  );
-}
-
 function LiveAge({dob,region,flightKey}) {
   const [d,setD]=useState(()=>calcDissonance(dob,region,flightKey));
   useEffect(()=>{const id=setInterval(()=>setD(calcDissonance(dob,region,flightKey)),1000);return()=>clearInterval(id);},[dob,region,flightKey]);
   if(!d) return null;
   const pad=v=>String(v).padStart(2,"0");
   return(
-    <div className="td-age-display">
-      You are precisely{" "}
-      <strong>{d.years}y {d.months}m {d.days}d </strong>
+    <div className="td-age-display td-num">
+      You are{" "}
+      <strong>{d.years}y {d.months}m {d.days}d</strong>{" "}
       <span className="amber">{pad(d.hours)}:{pad(d.minutes)}:{pad(d.seconds)}</span> old.
       <br/>
-      That is <strong>{d.totalHours.toLocaleString()}</strong> hours of existence and counting.
+      That's <strong>{d.totalHours.toLocaleString("en-GB")}</strong> hours so far.
     </div>
   );
 }
 
-// Eases a number up from 0 to `value` once, then holds — used for the big
-// reveal numbers so a result lands as a small, satisfying jolt of motion
-// rather than an inert value. Skips straight to the final value under
-// prefers-reduced-motion.
+// Eases the headline figure up from 0 once, then holds. Skips straight to
+// the value under prefers-reduced-motion.
 function CountUp({ value, duration = 650 }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -1029,7 +640,7 @@ function CountUp({ value, duration = 650 }) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
-  return display.toLocaleString();
+  return display.toLocaleString("en-GB");
 }
 
 function DissonanceCalc() {
@@ -1040,11 +651,8 @@ function DissonanceCalc() {
   const [result, setResult] = useState(null);
   const [calcState, setCalcState] = useState("idle"); // idle | loading | done
   const [dobError, setDobError] = useState("");
-  /* The shake is state rather than a class added to the node. Setting
-     dobError re-renders, and React rewrites className from the JSX on every
-     render — so a class put on imperatively is wiped before the animation
-     gets a frame. Clearing it on animationend is what lets the next refusal
-     replay it. */
+  // The shake is state rather than a class added to the node: React rewrites
+  // className on the re-render that sets dobError, which would wipe it.
   const [shaking, setShaking] = useState(false);
   const revertTimer = useRef(null);
 
@@ -1054,18 +662,12 @@ function DissonanceCalc() {
     if (calcState !== "idle") return;
     const r = calcDissonance(dob, region, flight);
     if (!r) {
-      /* The field assembly already knows how to refuse: is-error turns the
-         hairline hot and fades the message in underneath, is-shaking runs
-         the shake, and the portfolio's gate settles both back after three
-         seconds. All of that was already in ds/css/components/field.css and
-         none of it was wired up — the click just did nothing, which on a
-         form whose only required input is a date is the one failure that
-         needed saying out loud. */
+      // is-error and is-shaking come from ds/css/components/field.css; the
+      // message clears itself after 3 seconds.
       setDobError(dob
-        ? "That date isn't in range — anywhere from 1900 to today."
-        : "A date of birth first, and the rest follows from it.");
-      /* Two renders, not one: dropping the class and re-adding it in the
-         same batch is a no-op, so the second goes in a later frame. */
+        ? "Pick a date between 1900 and today."
+        : "Enter your date of birth first.");
+      // Drop and re-add in separate frames so the shake can replay.
       setShaking(false);
       requestAnimationFrame(() => setShaking(true));
       window.clearTimeout(revertTimer.current);
@@ -1090,30 +692,27 @@ function DissonanceCalc() {
 
   const fmtDate = d => d.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
   const flightOpt = FLIGHT_OPTIONS.find(o=>o.key===flight);
+  const n = v => v.toLocaleString("en-GB");
 
   return (
     <div className="td-calc-wrap">
       <div className="td-calc-inner">
-        <div className="td-calc-header">
-          <span className="td-calc-num">01 / Your time</span>
-          <div className="td-calc-line"/>
-        </div>
-        <h2 className="td-calc-title">How Much Time Has <em>Slipped Past?</em></h2>
-        <p className="td-calc-sub">
-          Tell us a little about yourself and we'll calculate your personal time dissonance — how many clock-hours have simply not existed during your lifetime, and how flying has nudged your age away from the person who never left the ground.
+        <h2 className="td-h2">How much time has <em>gone missing?</em></h2>
+        <p className="td-intro">
+          Give it your date of birth, where you grew up and how much you fly. It counts the clock-hours daylight saving has skipped since you were born, and works out how much younger flying has made you.
         </p>
 
         {step === 1 && (
           <div className="td-steps">
-            {/* Step 1: DOB */}
             <div>
-              <div className="td-step-label" data-n="1">Date of birth</div>
+              <div className="td-step-label td-label" data-n="1">Date of birth</div>
               <div className="td-input-row">
                 <div className="td-input-group">
                   <div className={`t-input-wrap${dobError?" is-error":""}`}>
                     <div className={`t-input${dobError?" is-error":""}${shaking?" is-shaking":""}`}
                       onAnimationEnd={()=>setShaking(false)}>
                       <input type="date" value={dob}
+                        aria-label="Date of birth"
                         max={new Date().toISOString().split("T")[0]} min="1900-01-01"
                         aria-invalid={dobError?"true":undefined}
                         aria-describedby="td-dob-error"
@@ -1121,24 +720,20 @@ function DissonanceCalc() {
                         onKeyDown={e=>e.key==="Enter"&&calculate()}
                       />
                     </div>
-                    {/* The message holds its line whether or not it is
-                        showing — it fades on opacity and visibility rather
-                        than display, so the fields below it don't jump. */}
-                    <p className="t-error-msg td-error-msg" id="td-dob-error" role="alert">
-                      {dobError||"\u00a0"}
+                    <p className="t-error-msg td-label" id="td-dob-error" role="alert">
+                      {dobError||" "}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Step 2: Region */}
             <div>
-              <div className="td-step-label" data-n="2">Where did you grow up?</div>
+              <div className="td-step-label td-label" data-n="2">Where did you grow up?</div>
               <div className="td-input-row">
                 <div className="td-input-group">
                   <div className="t-input t-input--select">
-                    <select value={region} onChange={e=>setRegion(e.target.value)}>
+                    <select value={region} aria-label="Where did you grow up?" onChange={e=>setRegion(e.target.value)}>
                       {Object.entries(DST_REGIONS).map(([k,v])=>(
                         <option key={k} value={k}>{v.label}</option>
                       ))}
@@ -1148,22 +743,17 @@ function DissonanceCalc() {
               </div>
             </div>
 
-            {/* Step 3: Flights */}
             <div>
-              <div className="td-step-label" data-n="3">How often do you take long-haul flights?</div>
+              <div className="td-step-label td-label" data-n="3">How often do you take long-haul flights?</div>
               <div className="td-pills">
                 {FLIGHT_OPTIONS.map(o=>(
-                  <button key={o.key} className={`td-pill t-chip t-chip--outlined${flight===o.key?" is-on":""}`} onClick={()=>setFlight(o.key)}>
+                  <button key={o.key} className={`td-pill td-label t-chip t-chip--outlined${flight===o.key?" is-on":""}`} aria-pressed={flight===o.key} onClick={()=>setFlight(o.key)}>
                     {o.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* .t-check-badge is the portfolio gate's spinner-to-tick, and
-                .t-think shimmers the label while the sum runs. Between them
-                they replace a hand-rolled ring spinner, a hand-drawn tick
-                and two keyframes that existed only here. */}
             <button className="td-calc-btn" data-state={calcState} onClick={calculate} disabled={calcState !== "idle"} aria-live="polite">
               <span className="t-check-blur-wrap" hidden={calcState === "idle"} aria-hidden="true">
                 <span className="t-check-badge" data-state={calcState === "done" ? "done" : "loading"}>
@@ -1180,10 +770,10 @@ function DissonanceCalc() {
               <span className="td-calc-label">
                 {calcState === "loading" ? (
                   <span className="t-think">
-                    <span className="t-think-sizer">Calculating…</span>
-                    <span className="t-think-text" data-text="Calculating…">Calculating…</span>
+                    <span className="t-think-sizer">Working it out…</span>
+                    <span className="t-think-text" data-text="Working it out…">Working it out…</span>
                   </span>
-                ) : calcState === "done" ? "Done" : "Show me my dissonance"}
+                ) : calcState === "done" ? "Done" : "Work it out"}
               </span>
             </button>
           </div>
@@ -1196,17 +786,15 @@ function DissonanceCalc() {
             {result.regionNoDST ? (
               <div className="td-no-dst">
                 <p>
-                  <strong>You grew up somewhere without daylight saving time.</strong> While others lost an hour each spring and spent weeks feeling the wrongness of it, your clocks stayed still.
-                  <br/><br/>
-                  But time was never entirely yours to keep. The relativistic and solar sections below still apply — the universe has its own relationship with your clock, regardless of local policy.
+                  <strong>You grew up somewhere without daylight saving,</strong> so your clocks never skipped an hour. Flying, leap seconds and the 2038 bug still apply, and they're below.
                 </p>
               </div>
             ) : (
               <div className="td-stolen-hero">
                 <div className="td-stolen-num"><CountUp value={result.hoursStolen}/></div>
-                <div className="td-stolen-label">Hours that didn't exist during your lifetime</div>
-                <div className="td-stolen-sub">
-                  That is {result.minutesStolen.toLocaleString()} minutes. Each spring since you were born, a clock-hour was skipped entirely. You didn't sleep through it. There was nothing there to sleep through.
+                <div className="td-stolen-label td-label">Hours skipped since you were born</div>
+                <div className="td-stolen-sub td-num">
+                  That's {n(result.minutesStolen)} minutes, 1 hour each spring when the clocks went forward.
                 </div>
               </div>
             )}
@@ -1214,74 +802,74 @@ function DissonanceCalc() {
             <div className="td-metric-grid">
               {!result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val amber"><Digits value={result.hoursStolen}/></div>
-                  <div className="td-metric-lbl">hours that didn't exist</div>
+                  <div className="td-metric-val amber">{result.hoursStolen}</div>
+                  <div className="td-metric-lbl td-label">Hours skipped</div>
                 </div>
               )}
               {!result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val"><Digits value={`${result.pctStolen}%`}/></div>
-                  <div className="td-metric-lbl">of your life, uncounted</div>
+                  <div className="td-metric-val">{result.pctStolen}%</div>
+                  <div className="td-metric-lbl td-label">Of your life so far</div>
                 </div>
               )}
               <div className="td-metric">
-                <div className="td-metric-val green"><Digits value={`${result.nsYounger.toLocaleString()}ns`}/></div>
-                <div className="td-metric-lbl">younger than your grounded self</div>
+                <div className="td-metric-val green">{n(result.nsYounger)}ns</div>
+                <div className="td-metric-lbl td-label">Younger than if you'd never flown</div>
               </div>
               <div className="td-metric">
-                <div className="td-metric-val cold"><Digits value={`${result.totalFlightHours.toLocaleString()}h`}/></div>
-                <div className="td-metric-lbl">estimated hours in the air</div>
+                <div className="td-metric-val cold">{n(result.totalFlightHours)}h</div>
+                <div className="td-metric-lbl td-label">Hours in the air (estimate)</div>
               </div>
-              {(result.regionNoDST) && (
+              {result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val mist"><Digits value={result.totalHours.toLocaleString()}/></div>
-                  <div className="td-metric-lbl">hours lived so far</div>
+                  <div className="td-metric-val mist">{n(result.totalHours)}</div>
+                  <div className="td-metric-lbl td-label">Hours lived</div>
                 </div>
               )}
-              {(result.regionNoDST) && (
+              {result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val amber"><Digits value="0"/></div>
-                  <div className="td-metric-lbl">clock-hours skipped by DST</div>
+                  <div className="td-metric-val amber">0</div>
+                  <div className="td-metric-lbl td-label">Hours skipped by daylight saving</div>
                 </div>
               )}
               <div className="td-metric">
-                <div className="td-metric-val mist"><Digits value={result.leapSecondsLived}/></div>
-                <div className="td-metric-lbl">leap seconds you've lived through</div>
+                <div className="td-metric-val mist">{result.leapSecondsLived}</div>
+                <div className="td-metric-lbl td-label">Leap seconds lived through</div>
               </div>
               <div className="td-metric">
-                <div className="td-metric-val cold"><Digits value={result.y2038Age}/></div>
-                <div className="td-metric-lbl">your age when 32-bit time overflows</div>
+                <div className="td-metric-val cold">{result.y2038Age}</div>
+                <div className="td-metric-lbl td-label">Your age when 32-bit time runs out</div>
               </div>
             </div>
 
-            <div className="td-insight">
+            <div className="td-insight td-num">
               {!result.regionNoDST && (
                 <p>
-                  Of your <strong>{result.totalHours.toLocaleString()} hours</strong> of existence, <span className="amber">{result.hoursStolen} of them ({result.pctStolen}%)</span> were clock-hours that simply weren't there. Each spring at 1:59am, the minute hand leapt forward to 3:00. The gap between wasn't lost time — it was absent time. A parenthesis in your life with nothing inside it.
+                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{result.hoursStolen} ({result.pctStolen}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
                 </p>
               )}
               {!result.regionNoDST && (
                 <p>
-                  When the clocks fall back each autumn, an hour reappears — but it isn't the one that vanished. That version of a Saturday morning in late March, the slow cup of tea at 2:15am that could have existed, is simply gone. What returns is a different hour, belonging to a different timeline.
+                  You get an hour back when the clocks go back in autumn, but it's a repeat of 1am. The one skipped in spring stays skipped.
                 </p>
               )}
               {result.nsYounger > 0 && (
                 <p>
-                  Based on <strong>{flightOpt.label.toLowerCase()}</strong> long-haul travel, roughly <strong>{result.totalFlightHours.toLocaleString()} hours</strong> of your life have been spent at altitude. At cruising speed, velocity time dilation outpaces the gravitational effect — meaning you are approximately <span className="green">{result.nsYounger.toLocaleString()} nanoseconds younger</span> than the version of you who never boarded a plane. Somewhere, that other you is fractionally older.
+                  You said you fly <strong>{flightOpt.label.toLowerCase()}</strong>. Counting from age 18, that's roughly <strong>{n(result.totalFlightHours)} hours</strong> in the air. At cruising speed the slowing from velocity outweighs the speeding up from altitude, so you're about <span className="green">{n(result.nsYounger)} nanoseconds younger</span> than you'd be if you'd never flown.
                 </p>
               )}
               {result.nsYounger === 0 && (
                 <p>
-                  You've barely flown, so your relativistic twin — the version of you who never left the ground — is aging at almost exactly your pace. You are, for now, the same person.
+                  You've barely flown, so you're the same age, to the nanosecond, as a version of you who never left the ground.
                 </p>
               )}
               {result.leapSecondsLived > 0 ? (
                 <p>
-                  You've also lived through <strong className="mist">{result.leapSecondsLived} leap second{result.leapSecondsLived === 1 ? "" : "s"}</strong> — extra ticks inserted to keep atomic clocks in step with the Earth's slightly irregular spin. None have been added since 2016, and by 2035 the world plans to stop adding them altogether. You will likely be <strong className="cold">{result.y2038Age}</strong> when a much larger clock bug arrives: the moment 32-bit Unix time runs out of numbers, at 03:14:07 UTC on 19 January 2038.
+                  You've also lived through <strong>{result.leapSecondsLived} leap second{result.leapSecondsLived === 1 ? "" : "s"}</strong>, added to keep atomic clocks in step with the Earth's uneven spin. None have been added since 2016 and they're due to stop by 2035. You'll be about <strong className="cold">{result.y2038Age}</strong> when 32-bit Unix time runs out, at 03:14:07 UTC on 19 January 2038.
                 </p>
               ) : (
                 <p>
-                  No leap second has been inserted since before you were born, and the world has now voted to retire them by 2035 — you may go your whole life without one. A bigger clock bug is still coming for you regardless: you'll be roughly <strong className="cold">{result.y2038Age}</strong> when 32-bit Unix time runs out of numbers, at 03:14:07 UTC on 19 January 2038.
+                  No leap second has been added since you were born, and they're due to stop by 2035, so you may never get one. You'll be about <strong className="cold">{result.y2038Age}</strong> when 32-bit Unix time runs out, at 03:14:07 UTC on 19 January 2038.
                 </p>
               )}
             </div>
@@ -1289,14 +877,14 @@ function DissonanceCalc() {
             {result.daysToNextSteal && (
               <div className="td-next-steal">
                 <div>
-                  <div className="td-next-label">Next hour that won't exist</div>
+                  <div className="td-next-label td-label">Next skipped hour</div>
                   <div className="td-next-val">{fmtDate(result.nextSpring)}</div>
                 </div>
-                <div className="td-next-days">{result.daysToNextSteal} days away</div>
+                <div className="td-next-days td-label td-num">In {result.daysToNextSteal} days</div>
               </div>
             )}
 
-            <button className="td-reset-btn" onClick={reset}>← Recalculate</button>
+            <button className="td-reset-btn td-label" onClick={reset}>Start again</button>
           </div>
         )}
       </div>
@@ -1307,94 +895,75 @@ function DissonanceCalc() {
 // ─────────────────────────────────────────────────────────────
 // COMBINED TIMELINE COMPONENT
 // ─────────────────────────────────────────────────────────────
+const FILTERS = [
+  { key: "all",       label: "All" },
+  { key: "solar",     label: "Solar storms" },
+  { key: "history",   label: "History" },
+  { key: "computing", label: "Computing" },
+];
+
+// Dates stored as YYYY-01-01 only mean "some time that year".
+const fmtEventDate = (iso) => {
+  if (iso.endsWith("-01-01")) return iso.slice(0, 4);
+  const d = new Date(iso + "T00:00:00Z");
+  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+};
+
 function CombinedTimeline() {
   const [filter, setFilter] = useState("all");
 
-  const filtered = HISTORY_EVENTS.filter(e => {
-    if (filter === "all") return true;
-    if (filter === "solar") return e.type === "solar";
-    if (filter === "history") return e.type === "history";
-    if (filter === "computing") return e.type === "computing";
-    return true;
-  });
+  const filtered = HISTORY_EVENTS.filter(e => filter === "all" || e.type === filter);
 
   const severityClass = (sev) => (sev ? SEVERITY[sev]?.cls ?? "" : "");
 
   return (
     <section className="td-section">
-      <Reveal>
-        <div className="td-section-header">
-          <span className="td-section-num">06 / Timeline</span>
-          <div className="td-section-line"/>
-        </div>
-        <h2 className="td-section-title">History of <em>Disrupted Time</em></h2>
-        <p className="td-section-intro">
-          Every event below changed how time was experienced — sometimes by policy, sometimes by physics, sometimes by the sun, sometimes by a 32-bit integer running out of room. Solar storms are rated on the NOAA G-scale (G1 minor to G5 extreme).
-        </p>
+      <h2 className="td-h2">A timeline of <em>disrupted time</em></h2>
+      <p className="td-intro">
+        Policy, physics, the sun and software, in date order. Solar storms use NOAA's G-scale, from G1 (minor) to G5 (extreme).
+      </p>
 
-        {/* Legend */}
-        <div className="td-legend">
-          <div className="td-legend-item">
-            <div className="td-legend-dot"/>
-            Historical event
-          </div>
-          <div className="td-legend-item">
-            <div className="td-legend-dot td-legend-dot--solar"/>
-            G3/G4 solar storm
-          </div>
-          <div className="td-legend-item">
-            <div className="td-legend-dot td-legend-dot--g5"/>
-            G5 extreme storm
-          </div>
-          <div className="td-legend-item">
-            <div className="td-legend-dot td-legend-dot--carrington"/>
-            Carrington-class
-          </div>
-          <div className="td-legend-item">
-            <div className="td-legend-dot td-legend-dot--computing"/>
-            Computing time bug
-          </div>
-        </div>
+      <div className="td-legend">
+        <div className="td-legend-item td-label"><div className="td-legend-dot"/>Historical event</div>
+        <div className="td-legend-item td-label"><div className="td-legend-dot td-legend-dot--solar"/>G3 or G4 solar storm</div>
+        <div className="td-legend-item td-label"><div className="td-legend-dot td-legend-dot--g5"/>G5 storm</div>
+        <div className="td-legend-item td-label"><div className="td-legend-dot td-legend-dot--carrington"/>Carrington-class</div>
+        <div className="td-legend-item td-label"><div className="td-legend-dot td-legend-dot--computing"/>Computing bug</div>
+      </div>
 
-        {/* Filter */}
-        <div className="td-filter">
-          {["all","solar","history","computing"].map(f=>(
-            <button key={f} className={`td-filter-btn t-chip t-chip--outlined${filter===f?" is-on":""}`} onClick={()=>setFilter(f)}>
-              {f === "all" ? "All events" : f === "solar" ? "Solar storms only" : f === "history" ? "Historical only" : "Computing only"}
-            </button>
-          ))}
-        </div>
-      </Reveal>
+      <div className="td-filter">
+        {FILTERS.map(f=>(
+          <button key={f.key} className={`td-filter-btn td-label t-chip t-chip--outlined${filter===f.key?" is-on":""}`} aria-pressed={filter===f.key} onClick={()=>setFilter(f.key)}>
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-      <Reveal>
-        <div className="td-timeline">
-          {filtered.map((item) => (
-            <div className="td-titem" key={item.date + item.label}>
-              <div className={`td-tdot ${item.type}${item.severity ? " "+severityClass(item.severity) : ""}`}/>
-              <div className="td-titem-inner">
-                <div className={`td-tdate${item.type==="solar"?" solar":""}`}>
-                  {item.date.slice(0,7).replace("-","/")}
-                </div>
-                <div className="td-trow">
-                  <div className="td-ttitle">{item.label}</div>
-                  {item.severity && (
-                    /* tabIndex so the tooltip is reachable without a
-                       pointer — .t-tt opens on focus-within as well as
-                       hover, now that it opens at all. */
-                    <span className="t-tt-wrap td-sev-wrap">
-                      <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0}>
-                        {item.severity}
-                      </span>
-                      <span className="t-tt" role="tooltip">{SEVERITY[item.severity].note}</span>
-                    </span>
-                  )}
-                </div>
-                <div className="td-tbody">{item.desc}</div>
+      <div className="td-timeline">
+        {filtered.map((item) => (
+          <div className="td-titem" key={item.date + item.label}>
+            <div className={`td-tdot ${item.type}${item.severity ? " "+severityClass(item.severity) : ""}`}/>
+            <div className="td-titem-inner">
+              <div className={`td-tdate td-label${item.type==="solar"?" solar":""}`}>
+                {fmtEventDate(item.date)}
               </div>
+              <div className="td-trow">
+                <h3 className="td-ttitle">{item.label}</h3>
+                {item.severity && (
+                  // tabIndex so the tooltip opens on keyboard focus too.
+                  <span className="t-tt-wrap td-sev-wrap">
+                    <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0}>
+                      {item.severity}
+                    </span>
+                    <span className="t-tt" role="tooltip">{SEVERITY[item.severity].note}</span>
+                  </span>
+                )}
+              </div>
+              <p className="td-tbody">{item.desc}</p>
             </div>
-          ))}
-        </div>
-      </Reveal>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -1403,32 +972,46 @@ function CombinedTimeline() {
 // STATIC DATA
 // ─────────────────────────────────────────────────────────────
 const dstCards = [
-  {tag:"Where it came from",title:"A joke that became policy",body:"Benjamin Franklin wrote satirically about waking Parisians at dawn to save candles. He didn't mean it seriously. A century later, Germany adopted the idea as wartime rationing. The whimsy became infrastructure.",link:"https://www.britannica.com/story/who-invented-daylight-saving-time",linkLabel:"Britannica"},
-  {tag:"What it does to you",title:"Your body keeps the old time",body:"In the days after the spring change, rates of heart attacks, car accidents, and workplace injuries all rise measurably. Your body's internal clock doesn't reset on command. It holds on to the hour that vanished.",link:"https://www.sleepfoundation.org/sleep-hygiene/daylight-saving-time-and-sleep",linkLabel:"Sleep Foundation"},
-  {tag:"The original reason",title:"It no longer does what it promised",body:"Daylight saving was meant to reduce energy use by shifting daylight into evenings. The evidence it ever worked is thin. Studies in some US states found electricity consumption went up — people just ran air conditioning in the brighter evenings.",link:"https://www.nber.org/papers/w14429",linkLabel:"NBER Research"},
-  {tag:"The autumn return",title:"The hour you get back isn't yours",body:"In October, the clocks fall back and an hour reappears. But it isn't the same hour. The version of you who would have lived that hour without daylight saving — you can't recover them. You receive someone else's hour in their place.",link:"https://www.bbc.co.uk/news/uk-politics-49678133",linkLabel:"BBC"},
+  {title:"It started as a joke",body:"In 1784 Benjamin Franklin wrote a satirical letter suggesting Parisians get up at dawn to save on candles. In 1916 Germany brought in daylight saving to save coal during the war, and Britain followed 3 weeks later.",link:"https://www.britannica.com/story/who-invented-daylight-saving-time",linkLabel:"Britannica on who invented it"},
+  {title:"Your body keeps the old time",body:"Heart attacks and car crashes both go up in the days after the spring change. Your body clock doesn't reset when the one on the wall does, and takes a few days to catch up.",link:"https://www.sleepfoundation.org/sleep-hygiene/daylight-saving-time-and-sleep",linkLabel:"Sleep Foundation on the effects"},
+  {title:"It may never have saved energy",body:"The point was to cut energy use by moving daylight into the evening. The evidence that it ever did is thin. A study of Indiana found electricity use went up, because people ran air conditioning through the lighter evenings.",link:"https://www.nber.org/papers/w14429",linkLabel:"The NBER paper"},
+  {title:"The autumn hour is a repeat",body:"When the clocks go back in October you get an extra hour, but it's 1am to 2am a second time. The hour skipped in spring is still gone.",link:"https://www.bbc.co.uk/news/uk-politics-49678133",linkLabel:"BBC on the UK debate"},
 ];
 
 const relCards = [
-  {num:"01",tag:"Moving clocks run slow",title:"Every flight makes you fractionally younger",body:"When you move quickly, time passes more slowly for you than for someone standing still. A passenger on a long-haul flight arrives slightly younger than a version of themselves who stayed home. The difference is nanoseconds — but it is real, measured, undeniable.",link:"https://www.bbc.co.uk/sciencefocus/article/does-time-pass-more-slowly-on-a-plane",linkLabel:"BBC Science",hl:true},
-  {num:"02",tag:"Gravity bends time",title:"Altitude makes clocks run fast",body:"The further you are from a large mass, the faster time flows. GPS satellites orbit at 20,000km and their clocks run 38 microseconds fast per day without correction. If engineers ignored this, your maps would be wrong by about 10km. They don't ignore it.",link:"https://science.nasa.gov/learn/explainers/einsteins-theory-of-relativity/",linkLabel:"NASA"},
-  {num:"03",tag:"Hafele-Keating, 1971",title:"It was tested on commercial flights",body:"In 1971, physicists flew atomic clocks around the world in both directions on commercial aircraft, then compared them to clocks on the ground. Einstein's predictions were confirmed precisely. Time dilation had been measured aboard a passenger jet.",link:"https://www.science.org/doi/10.1126/science.177.4044.166",linkLabel:"Science journal"},
-  {num:"04",tag:"It's already built in",title:"Your phone quietly does all of this",body:"The relativity corrections to GPS are not optional. Without them, the system would be useless within hours. Every time you navigate somewhere, a computer is silently compensating for the fact that time runs differently in orbit than it does in your pocket.",link:"https://physicscentral.com/explore/writers/will.cfm",linkLabel:"Physics Central"},
+  {title:"Every flight makes you slightly younger",body:"The faster you move, the slower your clock runs compared with someone standing still. On a long-haul flight that comes to a few nanoseconds.",link:"https://www.bbc.co.uk/sciencefocus/article/does-time-pass-more-slowly-on-a-plane",linkLabel:"BBC Science Focus"},
+  {title:"Altitude makes clocks run fast",body:"The further you are from a large mass, the faster time passes. GPS satellites orbit at about 20,000km and, with speed and altitude together, their clocks would run 38 microseconds a day fast without correction. Left alone, that puts your position out by about 10km a day.",link:"https://science.nasa.gov/learn/explainers/einsteins-theory-of-relativity/",linkLabel:"NASA on relativity"},
+  {title:"It was tested on commercial flights",body:"In 1971 Joseph Hafele and Richard Keating flew atomic clocks around the world on ordinary passenger flights, once eastward and once westward, then compared them with clocks left on the ground. The results matched Einstein's predictions.",link:"https://www.science.org/doi/10.1126/science.177.4044.166",linkLabel:"The paper in Science"},
+  {title:"Your phone already corrects for it",body:"The relativity corrections in GPS aren't optional. Without them the system would be useless within hours. Every time you follow a map, it's relying on satellite clocks adjusted for running at a different rate in orbit.",link:"https://physicscentral.com/explore/writers/will.cfm",linkLabel:"Physics Central"},
 ];
 
 const solarCards = [
-  {tag:"The signal disappears",title:"GPS timing fails silently",body:"Solar storms compress and distort the ionosphere that GPS signals travel through. Timing errors creep in — tens of metres at first, then more. The system doesn't announce this. Your phone keeps showing a blue dot, just not quite in the right place.",link:"https://www.swpc.noaa.gov/impacts/gps-position-errors",linkLabel:"NOAA"},
-  {tag:"A clock you didn't know you had",title:"Your oven runs on the power grid",body:"Many appliances keep time by counting the oscillations of the AC power supply — 50 cycles per second in the UK. When solar activity disrupts the grid, the frequency drifts. Ovens, microwaves, and older alarm clocks quietly accumulate minutes of error.",link:"https://www.newscientist.com/article/2239540-slow-clocks-why-your-oven-and-other-appliances-may-be-running-behind/",linkLabel:"New Scientist"},
-  {tag:"The one that almost wasn't",title:"2012: a near-miss nobody felt",body:"A Carrington-class CME erupted in July 2012. It missed Earth by nine days. Scientists later modelled what would have happened if it had hit — months-long GPS failure, power outages across continents, satellite damage costing trillions to repair.",link:"https://science.nasa.gov/science-research/heliophysics/the-perfect-solar-superstorm-the-1859-carrington-event/",linkLabel:"NASA"},
-  {tag:"May 2024",title:"The one you might have seen",body:"A G5 storm — the strongest in over two decades — lit up the sky across the UK and as far south as Florida. While people photographed auroras, automated farm tractors were silently drifting off their GPS-guided paths, and aviation radio briefly failed.",link:"https://www.bbc.co.uk/news/science-environment-69012972",linkLabel:"BBC News"},
+  {title:"GPS goes wrong without telling you",body:"Solar storms distort the ionosphere that GPS signals pass through, and errors creep in, tens of metres at first. Nothing warns you. Your phone still shows a blue dot, just in the wrong place.",link:"https://www.swpc.noaa.gov/impacts/gps-position-errors",linkLabel:"NOAA on GPS errors"},
+  {title:"Your oven runs on the power grid",body:"Many appliances keep time by counting the cycles of mains electricity, 50 a second in the UK. When the grid is disrupted the frequency drifts, and ovens, microwaves and older alarm clocks gain or lose minutes.",link:"https://www.newscientist.com/article/2239540-slow-clocks-why-your-oven-and-other-appliances-may-be-running-behind/",linkLabel:"New Scientist"},
+  {title:"2012: a near miss nobody felt",body:"A Carrington-class CME erupted in July 2012 and missed Earth by 9 days. Modelling afterwards suggested a hit would have meant months of GPS problems, power cuts across continents and trillions in damage.",link:"https://science.nasa.gov/science-research/heliophysics/the-perfect-solar-superstorm-the-1859-carrington-event/",linkLabel:"NASA on Carrington-class storms"},
+  {title:"The one you might have seen",body:"In May 2024 a G5 storm, the strongest in over 20 years, put auroras over the UK and as far south as Florida. At the same time GPS-guided tractors were drifting off their lines and some aviation radio went down.",link:"https://www.bbc.co.uk/news/science-environment-69012972",linkLabel:"BBC News"},
 ];
 
 const computingCards = [
-  {tag:"Gone by 2035",title:"The world voted to stop correcting for the Earth",body:"In November 2022 the world's metrologists resolved to stop inserting leap seconds by 2035. Meta and Google had lobbied hard for it, citing a 2012 leap second that knocked Reddit offline for half an hour and a 2017 one that caused Cloudflare's code to hand a negative number to a function that panicked when it saw one. After 27 leap seconds since 1972, the clock will simply be allowed to drift from the planet it was built to track.",link:"https://www.bipm.org/en/-/2022-11-18-cgpm-resolutions",linkLabel:"BIPM Resolution 4"},
-  {tag:"03:14:07 UTC, 19 January 2038",title:"A 32-bit number that runs out",body:"Countless systems still store time as seconds since 1970 in a 32-bit signed integer. That number tops out at 2,147,483,647. A second later it goes negative, and the clock reads 1901. You don't have to wait for 2038 to see the shape of this bug — in January 2022 a differently-sized version of it froze Microsoft Exchange's mail queues worldwide on New Year's Day.",link:"https://www.theregister.com/software/2022/01/03/microsoft-patches-y2k-like-bug-in-on-prem-exchange-server/1513135",linkLabel:"The Register"},
-  {tag:"Every 19.6 years",title:"GPS forgets what week it is",body:"GPS satellites count weeks in a 10-bit number that resets to zero every 1,024 weeks. It happened in 1999, and again in April 2019 — when flight-management software delayed a KLM jet, New York's public wireless network fell over, and GoPro drones and Honda dashboards quietly forgot what year it was. The next rollover lands in November 2038, within months of the 32-bit clock bug above. Neither date was chosen to coincide with the other. They just do.",link:"https://en.wikipedia.org/wiki/GPS_week_number_rollover",linkLabel:"Wikipedia"},
-  {tag:"2011–2012",title:"A lawsuit almost deleted everyone's timezone",body:"The tz database — the file that tells your phone when Berlin's clocks change — is public-domain infrastructure maintained by volunteers. In 2011 a company called Astrolabe sued its maintainers over unrelated astrology tables that had once been mentioned on its mailing list. The list and file server were pulled down within a week out of legal caution. The database now underpins ICANN-backed stewardship instead of one volunteer's FTP server, and the case was dropped four months later.",link:"https://www.eff.org/cases/astrolabe-v-olson",linkLabel:"EFF"},
+  {title:"Leap seconds are being dropped",body:"In November 2022 the world's metrologists voted to stop adding leap seconds by 2035. Meta and Google had pushed for it. A leap second in 2012 took Reddit offline for about half an hour, and one at the start of 2017 made Cloudflare's code hand a negative number to a function that crashed on it. After 27 since 1972, clock time will be left to drift away from the Earth's rotation.",link:"https://www.bipm.org/en/-/2022-11-18-cgpm-resolutions",linkLabel:"BIPM Resolution 4"},
+  {title:"A 32-bit number that runs out",body:"Lots of systems still store time as seconds since 1970 in a signed 32-bit integer. That tops out at 2,147,483,647, which is 03:14:07 UTC on 19 January 2038. A second later it goes negative and the date reads 1901. A similar overflow froze Microsoft Exchange mail queues on 1 January 2022.",link:"https://www.theregister.com/software/2022/01/03/microsoft-patches-y2k-like-bug-in-on-prem-exchange-server/1513135",linkLabel:"The Register on the Exchange bug"},
+  {title:"GPS forgets what week it is",body:"GPS counts weeks in a 10-bit number that goes back to zero every 1,024 weeks, about every 19.6 years. It happened in 1999 and again in April 2019, when flight-management software delayed a KLM flight, New York's public wifi went down, and some GoPro drones and Honda dashboards lost track of the year. The next rollover is in November 2038, a few months after the 32-bit bug. The two aren't connected.",link:"https://en.wikipedia.org/wiki/GPS_week_number_rollover",linkLabel:"Wikipedia"},
+  {title:"A lawsuit nearly took down the time zone database",body:"The tz database is the file that tells your phone when Berlin's clocks change. It's public domain and run by volunteers. In 2011 a company called Astrolabe sued its maintainers over astrology data once mentioned on the mailing list, and the list and file server came down within a week. ICANN took it over, and the case was dropped 4 months later.",link:"https://www.eff.org/cases/astrolabe-v-olson",linkLabel:"EFF on the case"},
 ];
+
+function Cards({ items }) {
+  return (
+    <div className="td-cards">
+      {items.map((c) => (
+        <article className="td-card" key={c.title}>
+          <h3 className="td-card-title">{c.title}</h3>
+          <p className="td-card-body">{c.body}</p>
+          <a className="td-card-link td-label t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel}</a>
+        </article>
+      ))}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // APP
@@ -1441,175 +1024,80 @@ export default function App() {
       <ScrollProgress/>
       <div className="td-main">
 
-        <div className="td-banner">
-          <span>Time Dissonance — on the strangeness of hours</span>
+        <div className="td-banner td-label">
+          <span>Time Dissonance</span>
           <LiveTime/>
         </div>
 
         <section className="td-hero">
           <Stagger className="td-hero-lines">
-            <p className="t-stagger-line td-eyebrow">On the strangeness of time</p>
             <h1 className="t-stagger-line td-title">Time<br/><span className="td-title-em">Dissonance</span></h1>
-            <p className="t-stagger-line td-sub">Time doesn't flow evenly. It slips, stretches, and vanishes entirely. Some hours you'll never find again — not because you wasted them, but because they simply weren't there.</p>
-            <div className="t-stagger-line td-clock-wrap">
+            <p className="t-stagger-line td-sub">Clocks skip an hour every spring, run fast in orbit and drift when the sun acts up. This works out how much of that has happened to you.</p>
+            <div className="t-stagger-line td-clock-wrap" aria-hidden="true">
               <Clock size={200}/>
-              <div className="td-clock-caption">hour · minute · second</div>
             </div>
           </Stagger>
-          <p className="td-scroll-hint">Scroll to understand what's happened to your time</p>
         </section>
 
         <DissonanceCalc/>
 
-        <Reveal>
-          <div className="td-stats">
-            <div><div className="td-stat-val">1h</div><div className="td-stat-label">Lost each spring, never returned</div></div>
-            <div><div className="td-stat-val">38µs</div><div className="td-stat-label">GPS satellites drift daily without Einstein</div></div>
-            <div><div className="td-stat-val">0.73ns</div><div className="td-stat-label">Younger per hour in the air</div></div>
-            <div><div className="td-stat-val">$2tn</div><div className="td-stat-label">Cost if the 2012 near-miss had hit</div></div>
+        <div className="td-stats">
+          <div><div className="td-stat-val">1h</div><div className="td-stat-label td-label">Skipped each spring</div></div>
+          <div><div className="td-stat-val">38µs</div><div className="td-stat-label td-label">GPS clock drift per day, uncorrected</div></div>
+          <div><div className="td-stat-val">0.73ns</div><div className="td-stat-label td-label">Younger per hour in the air</div></div>
+          <div><div className="td-stat-val">$2tn</div><div className="td-stat-label td-label">Cost if the 2012 near miss had hit</div></div>
+        </div>
+
+        <section className="td-section">
+          <h2 className="td-h2">The hour that <em>wasn't there</em></h2>
+          <p className="td-intro">Every spring the clocks go forward an hour. In most of Europe, one minute it's 01:59 and the next it's 03:00. Nothing happens between 2am and 3am because that hour doesn't exist.</p>
+          <div className="td-dst">
+            <div><div className="td-dst-big">01:59</div><div className="td-dst-label td-label">Late Saturday night</div></div>
+            <div className="td-dst-mid td-label">1 minute later</div>
+            <div><div className="td-dst-big stolen">03:00</div><div className="td-dst-label td-label">2am never happened</div></div>
           </div>
-        </Reveal>
-
-        <section className="td-section">
-          <Reveal>
-            <div className="td-section-header">
-              <span className="td-section-num">02 / Daylight Saving Time</span>
-              <div className="td-section-line"/>
-            </div>
-            <h2 className="td-section-title">The Hour That <em>Wasn't There</em></h2>
-            <p className="td-section-intro">Every spring, the clocks skip forward. One moment it is 1:59am, and then — without you doing anything, without any ceremony — it is 3am. The hour in between simply didn't happen. You didn't sleep through it. It wasn't there to sleep through.</p>
-            <div className="td-dst">
-              <div><div className="td-dst-big">01:59</div><div className="td-dst-label">Saturday night</div></div>
-              <div className="td-dst-arrow"><span>becomes</span>→<strong>gone</strong></div>
-              <div><div className="td-dst-big stolen">03:00</div><div className="td-dst-label">02:00 never existed</div></div>
-            </div>
-          </Reveal>
-          <Reveal>
-            <div className="td-cards">
-              {dstCards.map((c,i)=>(
-                <TiltCard key={i}>
-                  <div className="td-card">
-                    <span className="td-card-tag">{c.tag}</span>
-                    <h3 className="td-card-title">{c.title}</h3>
-                    <p className="td-card-body">{c.body}</p>
-                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                  </div>
-                </TiltCard>
-              ))}
-            </div>
-          </Reveal>
+          <Cards items={dstCards}/>
         </section>
 
         <div className="td-divider"/>
 
-        <Reveal>
-          <div className="td-quote">
-            <div className="td-quote-mark">"</div>
-            <p>Time is an illusion. Daylight saving time is a reminder that even our illusions have fine print.</p>
-            <cite>After Douglas Adams</cite>
-          </div>
-        </Reveal>
+        <figure className="td-quote">
+          <blockquote><p>Time is an illusion. Lunchtime doubly so.</p></blockquote>
+          <figcaption><cite className="td-label">Douglas Adams, The Hitchhiker's Guide to the Galaxy</cite></figcaption>
+        </figure>
 
         <div className="td-divider"/>
 
         <section className="td-section">
-          <Reveal>
-            <div className="td-section-header">
-              <span className="td-section-num">03 / Relativistic Time</span>
-              <div className="td-section-line"/>
-            </div>
-            <h2 className="td-section-title">You Are Aging <em>at Your Own Rate</em></h2>
-            <p className="td-section-intro">Every clock in the universe runs at a slightly different pace. This isn't philosophy — it's physics, confirmed repeatedly by experiment. The faster you move, the slower your clock runs. The further from Earth's gravity, the faster it goes. You are not the same age as your grounded self.</p>
-          </Reveal>
-          <Reveal>
-            <div className="td-rel-grid">
-              {relCards.map((c,i)=>(
-                <TiltCard key={i}>
-                  <div className={`td-rel-card${c.hl?" hl":""}`}>
-                    <div className="td-rel-num">{c.num}</div>
-                    <span className="td-card-tag">{c.tag}</span>
-                    <h3 className="td-card-title">{c.title}</h3>
-                    <p className="td-card-body">{c.body}</p>
-                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                  </div>
-                </TiltCard>
-              ))}
-            </div>
-          </Reveal>
+          <h2 className="td-h2">You age <em>at your own rate</em></h2>
+          <p className="td-intro">Every clock runs at a slightly different rate. Move faster and yours runs slower. Get further from the Earth and it runs faster. Both have been measured.</p>
+          <Cards items={relCards}/>
         </section>
 
         <div className="td-divider"/>
 
         <section className="td-section">
-          <Reveal>
-            <div className="td-section-header">
-              <span className="td-section-num">04 / Solar Weather</span>
-              <div className="td-section-line"/>
-            </div>
-            <h2 className="td-section-title">When the Sun <em>Loses Track</em></h2>
-            <p className="td-section-intro">Occasionally the sun releases a billion-tonne cloud of magnetised plasma that reaches Earth in a day or two. When it arrives, it doesn't just produce auroras — it distorts the invisible infrastructure that modern time-keeping depends on.</p>
-          </Reveal>
-          <Reveal>
-            <div className="td-cards">
-              {solarCards.map((c,i)=>(
-                <TiltCard key={i}>
-                  <div className="td-card">
-                    <span className="td-card-tag">{c.tag}</span>
-                    <h3 className="td-card-title">{c.title}</h3>
-                    <p className="td-card-body">{c.body}</p>
-                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                  </div>
-                </TiltCard>
-              ))}
-            </div>
-          </Reveal>
+          <h2 className="td-h2">When the sun <em>loses track</em></h2>
+          <p className="td-intro">Now and then the sun throws a billion-tonne cloud of magnetised plasma at the Earth, and it gets here a day or 2 later. As well as auroras, it disrupts GPS and the power grid, and a lot of timekeeping relies on both.</p>
+          <Cards items={solarCards}/>
         </section>
 
         <div className="td-divider"/>
 
         <section className="td-section">
-          <Reveal>
-            <div className="td-section-header">
-              <span className="td-section-num">05 / Computing Time</span>
-              <div className="td-section-line"/>
-            </div>
-            <h2 className="td-section-title">The Clock Was Never <em>Built to Last</em></h2>
-            <p className="td-section-intro">Every layer above — policy, physics, the sun — assumes the underlying clock just works. It doesn't. The way computers represent time is a set of engineering compromises made decades ago, several of which are already unwinding on a schedule.</p>
-          </Reveal>
-          <Reveal>
-            <div className="td-cards">
-              {computingCards.map((c,i)=>(
-                <TiltCard key={i}>
-                  <div className="td-card">
-                    <span className="td-card-tag">{c.tag}</span>
-                    <h3 className="td-card-title">{c.title}</h3>
-                    <p className="td-card-body">{c.body}</p>
-                    <a className="td-card-link t-link" href={c.link} target="_blank" rel="noopener noreferrer">{c.linkLabel} ↗</a>
-                  </div>
-                </TiltCard>
-              ))}
-            </div>
-          </Reveal>
+          <h2 className="td-h2">The clock wasn't <em>built to last</em></h2>
+          <p className="td-intro">All of the above assumes the clock underneath works. Computers store time using shortcuts taken decades ago, and some of them run out on known dates.</p>
+          <Cards items={computingCards}/>
         </section>
 
         <div className="td-divider"/>
 
         <CombinedTimeline/>
 
-        <Reveal>
-          <div className="td-quote">
-            <div className="td-quote-mark">"</div>
-            <p>The hour that vanishes each spring isn't returned in autumn. What comes back is a different hour, from a different timeline. You meet it as a stranger.</p>
-            <cite>On the irreversibility of absent time</cite>
-          </div>
-        </Reveal>
-
-        <Reveal>
-          <footer className="td-footer">
-            <span className="td-footer-brand">Time <em>Dissonance</em></span>
-            <span className="td-footer-note">A meditation on slipping hours</span>
-          </footer>
-        </Reveal>
+        <footer className="td-footer">
+          <span className="td-footer-brand">Time <em>Dissonance</em></span>
+          <span className="td-footer-note td-label">Figures are estimates. Each card links to its source.</span>
+        </footer>
 
       </div>
     </div>
