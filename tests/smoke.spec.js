@@ -23,12 +23,15 @@ for (const width of [390, 1280]) {
       await page.getByLabel("Where did you grow up?").selectOption("de");
       await page.getByRole("button", { name: "Work it out" }).click();
 
-      await expect(page.getByText("Hours skipped since you were born")).toBeVisible();
+      await expect(page.getByText("Hours skipped since you were born", { exact: true })).toBeVisible();
       await expect(page.locator(".td-stolen-num")).toHaveText("47");
+      // Focus moves to the results and they're announced.
+      await expect(page.getByRole("heading", { name: "Since you were born" })).toBeFocused();
+      await expect(page.getByRole("status")).toContainText("47 hours skipped since you were born");
       expect(await sidewaysScroll(page)).toBe(0);
 
       await page.getByRole("button", { name: "Start again" }).click();
-      await expect(page.getByLabel("Date of birth")).toBeVisible();
+      await expect(page.getByLabel("Date of birth")).toBeFocused();
 
       expect(errors).toEqual([]);
     });
@@ -52,7 +55,7 @@ test("the date error stays until the date changes", async ({ page }) => {
   await expect(message).toHaveText("");
   await work.click();
   await expect(message).toHaveText("Enter a date between 1 January 1900 and today.");
-  await expect(page.getByText("Hours skipped since you were born")).toHaveCount(0);
+  await expect(page.getByText("Hours skipped since you were born", { exact: true })).toHaveCount(0);
 });
 
 function sidewaysScroll(page) {

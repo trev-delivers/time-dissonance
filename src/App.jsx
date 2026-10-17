@@ -133,6 +133,10 @@ const styles = `
   .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-sans);font-size:var(--ds-type-ui-size);font-weight:var(--ds-type-ui-weight);padding:0.85rem 1.8rem;cursor:pointer;transition:background var(--ds-duration-base) var(--ds-ease-out),border-color var(--ds-duration-base) var(--ds-ease-out),color var(--ds-duration-base) var(--ds-ease-out);margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
   .td-calc-btn:hover{background:color-mix(in srgb,var(--ds-color-accent) 12%,transparent)}
 
+  .td-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .td-result-h{font-family:var(--ds-font-display);font-size:clamp(1.2rem,4vw,1.5rem);font-weight:400;color:var(--text-primary);margin-bottom:0.6rem}
+  .td-result-h:focus{outline:none}
+  .td-result-h:focus-visible{outline:2px solid var(--amber-hi);outline-offset:4px}
   .td-result{animation:td-enter var(--ds-duration-slower) var(--ds-ease-out) both}
   .td-age-display{color:var(--text-secondary);margin-bottom:2rem;line-height:2}
   .td-age-display strong{color:var(--text-primary);font-weight:500}
@@ -427,6 +431,15 @@ function CountUp({ value, duration = 650, format = v => v.toLocaleString("en-GB"
   return format(display);
 }
 
+/* What a screen reader hears when the results appear. The age ticks every
+   second, so it stays out of the live region. */
+function summarise(r) {
+  const skipped = r.jumps > 0
+    ? `${fmtHours(r.hoursSkipped)} hours skipped since you were born.`
+    : "No hours skipped since you were born.";
+  return `Results: ${skipped} About ${r.nsYounger.toLocaleString("en-GB")} nanoseconds younger from flying.`;
+}
+
 /* dobProblem() in src/lib/age.js decides which; the input's min and max
    match the range message. */
 const DOB_ERRORS = {
@@ -445,6 +458,18 @@ function DissonanceCalc() {
   // The shake is state rather than a class added to the node: React rewrites
   // className on the re-render that sets dobError, which would wipe it.
   const [shaking, setShaking] = useState(false);
+  /* Where focus goes next: the results heading when they appear, the date
+     input after "Start again". Without this it fell back to the page top. */
+  const focusNext = useRef(null);
+  const resultsHeading = useRef(null);
+  const dobInput = useRef(null);
+
+  useEffect(() => {
+    const target = focusNext.current === "results" ? resultsHeading.current
+      : focusNext.current === "input" ? dobInput.current : null;
+    focusNext.current = null;
+    target?.focus();
+  }, [step]);
 
   const calculate = useCallback(() => {
     const problem = dobProblem(dob);
@@ -459,10 +484,11 @@ function DissonanceCalc() {
     }
     setDobError("");
     setResult(calcDissonance(dob, region, flight));
+    focusNext.current = "results";
     setStep(2);
   }, [dob, region, flight]);
 
-  const reset = () => { setStep(1); setResult(null); };
+  const reset = () => { focusNext.current = "input"; setStep(1); setResult(null); };
 
   const fmtDate = d => d.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
   const flightOpt = FLIGHT_OPTIONS.find(o=>o.key===flight);
@@ -476,6 +502,8 @@ function DissonanceCalc() {
           Give it your date of birth, where you grew up and how much you fly. It counts the clock-hours daylight saving has skipped since you were born, and works out how much younger flying has made you.
         </p>
 
+        <p className="td-sr" role="status">{step === 2 && result ? summarise(result) : ""}</p>
+
         {step === 1 && (
           <div className="td-steps">
             <div>
@@ -485,7 +513,7 @@ function DissonanceCalc() {
                   <div className={`t-input-wrap${dobError?" is-error":""}`}>
                     <div className={`t-input${dobError?" is-error":""}${shaking?" is-shaking":""}`}
                       onAnimationEnd={()=>setShaking(false)}>
-                      <input type="date" value={dob}
+                      <input type="date" value={dob} ref={dobInput}
                         aria-label="Date of birth"
                         max={localISODate()} min={EARLIEST_DOB}
                         aria-invalid={dobError?"true":undefined}
@@ -541,6 +569,7 @@ function DissonanceCalc() {
 
         {step === 2 && result && (
           <div className="td-result">
+            <h3 className="td-result-h" ref={resultsHeading} tabIndex={-1}>Since you were born</h3>
             <LiveAge dob={dob} region={region} flightKey={flight}/>
 
             {result.jumps === 0 ? (
