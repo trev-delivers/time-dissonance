@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Starfield from "./Starfield.jsx";
-import { REGIONS, REGION_BY_KEY, DEFAULT_REGION } from "./lib/regions.js";
-import { nextJump, skippedSince } from "./lib/dst.js";
+import { REGIONS, DEFAULT_REGION } from "./lib/regions.js";
+import { FLIGHT_OPTIONS, calcDissonance } from "./lib/calc.js";
+import { localISODate, EARLIEST_DOB } from "./lib/age.js";
 
 /* The region list as [group, regions] pairs for the <optgroup>s. */
 const REGION_GROUPS = [...new Set(REGIONS.map(r => r.group))].map(g => [g, REGIONS.filter(r => r.group === g)]);
@@ -9,102 +10,6 @@ const REGION_GROUPS = [...new Set(REGIONS.map(r => r.group))].map(g => [g, REGIO
 /* Hours skipped are whole except where a zone jumped by half an hour. */
 const fmtHours = h => Number.isInteger(h) ? h.toLocaleString("en-GB") : h.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
-
-// ─────────────────────────────────────────────────────────────
-// FLIGHT FREQUENCY OPTIONS
-// ─────────────────────────────────────────────────────────────
-const FLIGHT_OPTIONS = [
-  { key: "never",    label: "Never or almost never",  hoursPerYear: 0 },
-  { key: "rare",     label: "Rarely (1 long-haul flight every few years)", hoursPerYear: 5 },
-  { key: "annual",   label: "Once or twice a year",   hoursPerYear: 20 },
-  { key: "frequent", label: "Several times a year",   hoursPerYear: 60 },
-  { key: "heavy",    label: "Very often (for work, say)", hoursPerYear: 120 },
-];
-
-// ─────────────────────────────────────────────────────────────
-// LEAP SECONDS — every one ever inserted, per IERS Bulletin C.
-// All 27 fall at the end of 30 June or 31 December; day-level
-// precision is enough since date-of-birth is a plain date input.
-// None have been added since 2016, and none will be again once the
-// 2035 phase-out lands (see the Computing Time section below).
-// ─────────────────────────────────────────────────────────────
-const LEAP_SECOND_DATES = [
-  "1972-06-30","1972-12-31","1973-12-31","1974-12-31","1975-12-31","1976-12-31",
-  "1977-12-31","1978-12-31","1979-12-31","1981-06-30","1982-06-30","1983-06-30",
-  "1985-06-30","1987-12-31","1989-12-31","1990-12-31","1992-06-30","1993-06-30",
-  "1994-06-30","1995-12-31","1997-06-30","1998-12-31","2005-12-31","2008-12-31",
-  "2012-06-30","2015-06-30","2016-12-31",
-].map(d => new Date(d + "T00:00:00Z"));
-
-// The moment 32-bit signed Unix time overflows: 03:14:07 UTC, 19 January 2038.
-const Y2038_MOMENT = new Date("2038-01-19T03:14:07Z");
-
-// Relativistic time dilation estimate
-// At cruising altitude ~35,000ft (~10,700m), two effects compete:
-// Gravitational: clocks run faster (altitude above Earth) → +ve aging
-// Velocity: clocks run slower (speed ~900km/h) → -ve aging
-// Net: gravitational dominates slightly → you age *slightly* more than if on ground
-// Δt_grav ≈ g*h/c² per second ≈ 1.09e-13 per second at 10km
-// Δt_vel ≈ v²/(2c²) per second ≈ 3.13e-13 per second at 900km/h
-// Net: velocity dominates on planes → you age slightly LESS
-// Per flight hour: ~(3.13-1.09)e-13 * 3600 ≈ 7.3e-10 seconds younger = ~0.73ns younger
-// We present as "you are X nanoseconds younger than your grounded twin"
-function calcRelativisticNS(flightKey, ageYears) {
-  const opt = FLIGHT_OPTIONS.find(o => o.key === flightKey) || FLIGHT_OPTIONS[0];
-  const adultYears = Math.max(0, ageYears - 18);
-  const totalFlightHours = adultYears * opt.hoursPerYear;
-  // Net: velocity dominates, you're slightly YOUNGER
-  const nsYounger = Math.round(totalFlightHours * 0.73);
-  return { nsYounger, totalFlightHours: Math.round(totalFlightHours) };
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN CALCULATION
-// ─────────────────────────────────────────────────────────────
-function calcDissonance(dob, region, flightKey) {
-  const now = new Date();
-  const birth = new Date(dob);
-  if (isNaN(birth) || birth >= now) return null;
-
-  const reg = REGION_BY_KEY[region] ?? REGION_BY_KEY.none;
-  const skipped = reg.zone ? skippedSince(reg.key, dob, now) : { count: 0, hours: 0, seconds: 0 };
-  const hoursStolen = skipped.hours;
-
-  const msAlive = now - birth;
-  const totalHours = msAlive / 3600000;
-  const totalDays = msAlive / 86400000;
-  const years = Math.floor(totalDays / 365.25);
-  const rem = totalDays - years * 365.25;
-  const months = Math.floor(rem / 30.44);
-  const days = Math.floor(rem - months * 30.44);
-  const hours = Math.floor((msAlive % 86400000) / 3600000);
-  const minutes = Math.floor((msAlive % 3600000) / 60000);
-  const seconds = Math.floor((msAlive % 60000) / 1000);
-
-  const pctStolen = hoursStolen > 0 ? ((hoursStolen / totalHours) * 100).toFixed(6) : "0.000000";
-
-  const { nsYounger, totalFlightHours } = calcRelativisticNS(flightKey, years);
-
-  const next = reg.zone ? nextJump(reg.key, now) : null;
-  const nextSpring = next ? new Date(next.localDate.year, next.localDate.month - 1, next.localDate.day) : null;
-  const daysToNextSteal = next ? Math.ceil((next.at - now) / 86400000) : null;
-
-  const leapSecondsLived = LEAP_SECOND_DATES.filter(ls => ls > birth).length;
-  const y2038Age = Math.floor((Y2038_MOMENT - birth) / (365.25 * 86400000));
-
-  return {
-    years, months, days, hours, minutes, seconds,
-    hoursStolen, jumps: skipped.count, minutesStolen: Math.round(skipped.seconds / 60),
-    totalHours: Math.floor(totalHours),
-    pctStolen,
-    nsYounger, totalFlightHours,
-    daysToNextSteal, nextSpring,
-    regionNoDST: skipped.count === 0,
-    regionHasZone: Boolean(reg.zone),
-    regionLabel: reg.label,
-    leapSecondsLived, y2038Age,
-  };
-}
 
 // ─────────────────────────────────────────────────────────────
 // COMBINED TIMELINE (historical + solar)
@@ -597,7 +502,7 @@ function DissonanceCalc() {
                       onAnimationEnd={()=>setShaking(false)}>
                       <input type="date" value={dob}
                         aria-label="Date of birth"
-                        max={new Date().toISOString().split("T")[0]} min="1900-01-01"
+                        max={localISODate()} min={EARLIEST_DOB}
                         aria-invalid={dobError?"true":undefined}
                         aria-describedby="td-dob-error"
                         onChange={e=>{setDob(e.target.value);setDobError("");}}
@@ -674,7 +579,7 @@ function DissonanceCalc() {
           <div className="td-result">
             <LiveAge dob={dob} region={region} flightKey={flight}/>
 
-            {result.regionNoDST ? (
+            {result.jumps === 0 ? (
               <div className="td-no-dst">
                 <p>
                   {result.regionHasZone
@@ -685,24 +590,24 @@ function DissonanceCalc() {
               </div>
             ) : (
               <div className="td-stolen-hero">
-                <div className="td-stolen-num"><CountUp value={result.hoursStolen} format={fmtHours}/></div>
+                <div className="td-stolen-num"><CountUp value={result.hoursSkipped} format={fmtHours}/></div>
                 <div className="td-stolen-label td-label">Hours skipped since you were born</div>
                 <div className="td-stolen-sub td-num">
-                  That's {n(result.minutesStolen)} minutes, from {result.jumps === 1 ? "the 1 time" : `the ${result.jumps} times`} the clocks went forward.
+                  That's {n(result.minutesSkipped)} minutes, from {result.jumps === 1 ? "the 1 time" : `the ${result.jumps} times`} the clocks went forward.
                 </div>
               </div>
             )}
 
             <div className="td-metric-grid">
-              {!result.regionNoDST && (
+              {result.jumps > 0 && (
                 <div className="td-metric">
-                  <div className="td-metric-val amber">{fmtHours(result.hoursStolen)}</div>
+                  <div className="td-metric-val amber">{fmtHours(result.hoursSkipped)}</div>
                   <div className="td-metric-lbl td-label">Hours skipped</div>
                 </div>
               )}
-              {!result.regionNoDST && (
+              {result.jumps > 0 && (
                 <div className="td-metric">
-                  <div className="td-metric-val">{result.pctStolen}%</div>
+                  <div className="td-metric-val">{result.pctSkipped}%</div>
                   <div className="td-metric-lbl td-label">Of your life so far</div>
                 </div>
               )}
@@ -714,13 +619,13 @@ function DissonanceCalc() {
                 <div className="td-metric-val cold">{n(result.totalFlightHours)}h</div>
                 <div className="td-metric-lbl td-label">Hours in the air (estimate)</div>
               </div>
-              {result.regionNoDST && (
+              {result.jumps === 0 && (
                 <div className="td-metric">
                   <div className="td-metric-val mist">{n(result.totalHours)}</div>
                   <div className="td-metric-lbl td-label">Hours lived</div>
                 </div>
               )}
-              {result.regionNoDST && (
+              {result.jumps === 0 && (
                 <div className="td-metric">
                   <div className="td-metric-val amber">0</div>
                   <div className="td-metric-lbl td-label">Hours skipped by daylight saving</div>
@@ -737,12 +642,12 @@ function DissonanceCalc() {
             </div>
 
             <div className="td-insight td-num">
-              {!result.regionNoDST && (
+              {result.jumps > 0 && (
                 <p>
-                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{fmtHours(result.hoursStolen)} ({result.pctStolen}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
+                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{fmtHours(result.hoursSkipped)} ({result.pctSkipped}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
                 </p>
               )}
-              {!result.regionNoDST && (
+              {result.jumps > 0 && (
                 <p>
                   You get an hour back when the clocks go back in autumn, but it's a repeat of 1am. The one skipped in spring stays skipped.
                 </p>
@@ -768,13 +673,13 @@ function DissonanceCalc() {
               )}
             </div>
 
-            {result.daysToNextSteal && (
+            {result.daysToNextJump && (
               <div className="td-next-steal">
                 <div>
                   <div className="td-next-label td-label">Next skipped hour</div>
-                  <div className="td-next-val">{fmtDate(result.nextSpring)}</div>
+                  <div className="td-next-val">{fmtDate(new Date(result.nextJump.localDate.year, result.nextJump.localDate.month - 1, result.nextJump.localDate.day))}</div>
                 </div>
-                <div className="td-next-days td-label td-num">In {result.daysToNextSteal} days</div>
+                <div className="td-next-days td-label td-num">In {result.daysToNextJump} days</div>
               </div>
             )}
 
