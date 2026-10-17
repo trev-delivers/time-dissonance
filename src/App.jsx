@@ -75,7 +75,6 @@ const styles = `
 
   .t-tt-wrap:hover .t-tt,.t-tt-wrap:focus-within .t-tt{opacity:1;transform:translateY(0) scale(1)}
   .t-tt{background:var(--ds-color-surface-raised);border-color:var(--ds-color-border);color:var(--ds-color-text-dim);font-family:var(--ds-font-sans);font-size:var(--ds-type-label-size);box-shadow:0 12px 26px -14px var(--ds-color-shadow-color)}
-  .t-think{--think-base:var(--ds-color-text-muted);--think-highlight:var(--ds-color-text)}
   .t-stagger{--stagger-dur:var(--ds-duration-slow);--stagger-ease:var(--ds-ease-out)}
   .t-stagger .t-stagger-line:nth-child(2){transition-delay:var(--stagger-stagger)}
   .t-stagger .t-stagger-line:nth-child(3){transition-delay:calc(var(--stagger-stagger) * 2)}
@@ -133,10 +132,6 @@ const styles = `
 
   .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-sans);font-size:var(--ds-type-ui-size);font-weight:var(--ds-type-ui-weight);padding:0.85rem 1.8rem;cursor:pointer;transition:background var(--ds-duration-base) var(--ds-ease-out),border-color var(--ds-duration-base) var(--ds-ease-out),color var(--ds-duration-base) var(--ds-ease-out);margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
   .td-calc-btn:hover{background:color-mix(in srgb,var(--ds-color-accent) 12%,transparent)}
-  .td-calc-btn[data-state="loading"],.td-calc-btn[data-state="done"]{cursor:default}
-  .td-calc-btn[data-state="done"]{border-color:var(--green);color:var(--green)}
-  .td-calc-btn .t-check-badge{width:15px;height:15px;flex:0 0 15px;--check-ring-w:2px}
-  .td-calc-btn .t-think{font:inherit}
 
   .td-result{animation:td-enter var(--ds-duration-slower) var(--ds-ease-out) both}
   .td-age-display{color:var(--text-secondary);margin-bottom:2rem;line-height:2}
@@ -446,14 +441,12 @@ function DissonanceCalc() {
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [flight, setFlight] = useState("annual");
   const [result, setResult] = useState(null);
-  const [calcState, setCalcState] = useState("idle"); // idle | loading | done
   const [dobError, setDobError] = useState("");
   // The shake is state rather than a class added to the node: React rewrites
   // className on the re-render that sets dobError, which would wipe it.
   const [shaking, setShaking] = useState(false);
 
   const calculate = useCallback(() => {
-    if (calcState !== "idle") return;
     const problem = dobProblem(dob);
     if (problem) {
       // is-error and is-shaking come from ds/css/components/field.css. The
@@ -464,20 +457,10 @@ function DissonanceCalc() {
       requestAnimationFrame(() => setShaking(true));
       return;
     }
-    const r = calcDissonance(dob, region, flight);
     setDobError("");
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) { setResult(r); setStep(2); return; }
-    setCalcState("loading");
-    window.setTimeout(() => {
-      setCalcState("done");
-      window.setTimeout(() => {
-        setResult(r);
-        setStep(2);
-        setCalcState("idle");
-      }, 260);
-    }, 550);
-  }, [dob, region, flight, calcState]);
+    setResult(calcDissonance(dob, region, flight));
+    setStep(2);
+  }, [dob, region, flight]);
 
   const reset = () => { setStep(1); setResult(null); };
 
@@ -552,28 +535,7 @@ function DissonanceCalc() {
               </div>
             </div>
 
-            <button className="td-calc-btn" data-state={calcState} onClick={calculate} disabled={calcState !== "idle"} aria-live="polite">
-              <span className="t-check-blur-wrap" hidden={calcState === "idle"} aria-hidden="true">
-                <span className="t-check-badge" data-state={calcState === "done" ? "done" : "loading"}>
-                  <span className="t-check-ring"/>
-                  <span className="t-check-arc"/>
-                  <span className="t-check-fill"/>
-                  <span className="t-check-disc">
-                    <svg viewBox="0 0 22 22" fill="none">
-                      <path className="t-check-mark" d="M6 11.5L9.5 15L16 8" style={{"--check-mark-len":"15"}}/>
-                    </svg>
-                  </span>
-                </span>
-              </span>
-              <span className="td-calc-label">
-                {calcState === "loading" ? (
-                  <span className="t-think">
-                    <span className="t-think-sizer">Working it out…</span>
-                    <span className="t-think-text" data-text="Working it out…">Working it out…</span>
-                  </span>
-                ) : calcState === "done" ? "Done" : "Work it out"}
-              </span>
-            </button>
+            <button className="td-calc-btn" onClick={calculate}>Work it out</button>
           </div>
         )}
 
