@@ -18,6 +18,18 @@ Dry, specific, unfussy, with a bit of humour when it's earned. He writes like so
 
 Notice what they do: name the actual thing, give the one fact the reader needs, and let a single wry word carry the joke ("regretted"). No setup, no moral, no flourish.
 
+When he's explaining why he made something, he talks in the first person and gives the real reason, personal bits included. This is him describing the skincare app, as he typed it:
+
+> "ive never had a skincare regime, but decided now was a good time. i wanted an easy way I could add to the routine (my wife has really got me into it haha..) but also make something that people can use themselves."
+
+And on why its colours change:
+
+> "the aim of this is to use it every morning and every evening, so for that, i made sure the design followed the light in the room, switches over to dark mode when the glare is all too much!"
+
+That's the register to aim for: conversational, a bit self-aware, and about him and the people using it, not about the system. Tidy the spelling and capitals, check the facts (that app follows the clock, not a light sensor), and drop "haha" and the exclamation mark from published copy. Keep the "I", the reason and the aside.
+
+If a draft reads like documentation of itself ("The only one that moves: the palette is a ramp through the day"), it's wrong even when every rule below is followed. Rewrite it as Trev telling a friend what it's for.
+
 ## Drafting rules
 
 ### Words
@@ -38,6 +50,7 @@ Notice what they do: name the actual thing, give the one fact the reader needs, 
 - One idea per sentence. Aim for under 20 words; go over only when it reads better.
 - Active voice. Say who does what: "We couldn't save your note", not "Your note could not be saved".
 - Address the reader as "you". Use "we" only for the team or product doing something real.
+- Use "I" when it's Trev's own project and the copy is about why he made it or what he decided. Theme notes, READMEs, docs pages and case studies all count.
 - Front-load. Put the useful bit first: "Delete this list? You can't undo it."
 - Contractions are good: it's, you'll, can't, we've, nobody's.
 - No em dashes or en dashes as punctuation. Use a full stop, a comma, brackets or a colon. Hyphens in compound words are fine.
@@ -156,6 +169,10 @@ After: "A small app for logging skincare that doesn't make your face angry. Buil
 **PR description**
 Before: "This PR delves into the empty state experience, enhancing it to provide a more engaging and intuitive journey for users. Let me know if you have any questions!"
 After: "Adds an empty state to the saved finds page, with a button to add the first one. Previously the page was blank. Check it on a small screen, the button wraps at 320px."
+
+**Design system theme note**
+Before: "Ritual. The only one that moves: the palette is a ramp through the day, worked out from the clock, so it is warm at dawn, plain at noon and dark by bedtime. These values are the 10am stop, which is what paints before the JavaScript has read the time."
+After: "For the skincare app. It's meant to be used every morning and every evening, so the colours follow the clock and it goes dark at night when the glare is all too much. What you see here is the 10am set, which is what shows before the app has checked the time."
 
 **Commit message**
 Before: "Updated various components to improve overall UX and code quality."
