@@ -1,228 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Starfield from "./Starfield.jsx";
+import { REGIONS, DEFAULT_REGION } from "./lib/regions.js";
+import { FLIGHT_OPTIONS, calcDissonance } from "./lib/calc.js";
+import { dobProblem, localISODate, EARLIEST_DOB } from "./lib/age.js";
 
-// ─────────────────────────────────────────────────────────────
-// DST REGION DATA
-// Each region has: name, label, rules per era
-// rule: { from, to, springMonth (0-indexed), springRule, fallMonth, fallRule }
-// springRule: "lastSun", "lastSun", or specific date logic
-// ─────────────────────────────────────────────────────────────
+/* The region list as [group, regions] pairs for the <optgroup>s. */
+const REGION_GROUPS = [...new Set(REGIONS.map(r => r.group))].map(g => [g, REGIONS.filter(r => r.group === g)]);
 
-function lastSundayOf(year, month) {
-  const last = new Date(year, month + 1, 0);
-  const dow = last.getDay();
-  return new Date(year, month, last.getDate() - (dow === 0 ? 0 : dow));
-}
+/* Hours skipped are whole except where a zone jumped by half an hour. */
+const fmtHours = h => Number.isInteger(h) ? h.toLocaleString("en-GB") : h.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
-function firstSundayOf(year, month) {
-  const first = new Date(year, month, 1);
-  const dow = first.getDay();
-  return new Date(year, month, 1 + (dow === 0 ? 0 : 7 - dow));
-}
-
-function secondSundayOf(year, month) {
-  const f = firstSundayOf(year, month);
-  return new Date(year, month, f.getDate() + 7);
-}
-
-// Returns array of { year, springForward } dates for a region between birth and now
-function getDSTSprings(regionKey, birthDate, toDate) {
-  const region = DST_REGIONS[regionKey];
-  if (!region || region.noDST) return [];
-  const springs = [];
-  for (let y = birthDate.getFullYear(); y <= toDate.getFullYear(); y++) {
-    const spring = region.getSpring(y);
-    if (spring && spring > birthDate && spring <= toDate) {
-      springs.push(spring);
-    }
-  }
-  return springs;
-}
-
-const DST_REGIONS = {
-  uk: {
-    label: "United Kingdom",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1916) return null; // No DST before 1916
-      if (y === 1916) return new Date(1916, 4, 21); // May 21
-      if (y >= 1917 && y <= 1939) return lastSundayOf(y, 2); // Last Sun March
-      if (y >= 1940 && y <= 1945) return null; // Double BST / war time (complex — skip net)
-      if (y >= 1946 && y <= 1967) return lastSundayOf(y, 2);
-      if (y === 1968) return null; // UK stayed on BST all year 1968–1971
-      if (y === 1969) return null;
-      if (y === 1970) return null;
-      if (y === 1971) return null;
-      if (y >= 1972) return lastSundayOf(y, 2); // Last Sun March
-      return null;
-    },
-  },
-  eu: {
-    label: "Continental Europe",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1916) return null;
-      if (y >= 1916 && y <= 1939) return lastSundayOf(y, 2);
-      if (y >= 1940 && y <= 1945) return null; // War disruptions
-      if (y >= 1946 && y <= 1979) return lastSundayOf(y, 2); // approximate
-      if (y >= 1980) return lastSundayOf(y, 2); // Harmonised EU: last Sun March
-      return null;
-    },
-  },
-  us: {
-    label: "United States",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1918) return null;
-      if (y >= 1918 && y <= 1919) return lastSundayOf(y, 2);
-      if (y >= 1920 && y <= 1941) return null; // No federal DST
-      if (y >= 1942 && y <= 1945) return new Date(y, 1, 9); // War time year-round
-      if (y >= 1946 && y <= 1966) return lastSundayOf(y, 3); // Last Sun April
-      if (y >= 1967 && y <= 2006) return lastSundayOf(y, 3); // Last Sun April
-      if (y >= 2007) return secondSundayOf(y, 2); // 2nd Sun March (Energy Policy Act)
-      return null;
-    },
-  },
-  au: {
-    label: "Australia (SE)",
-    noDST: false,
-    getSpring: (y) => {
-      // Southern hemisphere: spring = October
-      if (y < 1917) return null;
-      // Australia DST varies by state — using VIC/NSW/ACT/TAS/SA approximation
-      if (y >= 2008) return firstSundayOf(y, 9); // First Sun October
-      if (y >= 1971) return lastSundayOf(y, 9); // Last Sun October
-      if (y >= 1944) return new Date(y, 2, 1); // approx March (complex war era)
-      return null;
-    },
-  },
-  nz: {
-    label: "New Zealand",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1927) return null;
-      // NZ spring = September/October
-      if (y >= 2007) return lastSundayOf(y, 8); // Last Sun September
-      if (y >= 1974) return lastSundayOf(y, 9); // Last Sun October
-      return null;
-    },
-  },
-  ca: {
-    label: "Canada",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1918) return null;
-      if (y >= 2007) return secondSundayOf(y, 2); // Follows US
-      if (y >= 1967) return lastSundayOf(y, 3);
-      return null;
-    },
-  },
-  none: {
-    label: "No DST (e.g. Japan, India, most of Africa)",
-    noDST: true,
-    getSpring: () => null,
-  },
-};
-
-// ─────────────────────────────────────────────────────────────
-// FLIGHT FREQUENCY OPTIONS
-// ─────────────────────────────────────────────────────────────
-const FLIGHT_OPTIONS = [
-  { key: "never",    label: "Never or almost never",  hoursPerYear: 0 },
-  { key: "rare",     label: "Rarely (1 long-haul flight every few years)", hoursPerYear: 5 },
-  { key: "annual",   label: "Once or twice a year",   hoursPerYear: 20 },
-  { key: "frequent", label: "Several times a year",   hoursPerYear: 60 },
-  { key: "heavy",    label: "Very often (for work, say)", hoursPerYear: 120 },
-];
-
-// ─────────────────────────────────────────────────────────────
-// LEAP SECONDS — every one ever inserted, per IERS Bulletin C.
-// All 27 fall at the end of 30 June or 31 December; day-level
-// precision is enough since date-of-birth is a plain date input.
-// None have been added since 2016, and none will be again once the
-// 2035 phase-out lands (see the Computing Time section below).
-// ─────────────────────────────────────────────────────────────
-const LEAP_SECOND_DATES = [
-  "1972-06-30","1972-12-31","1973-12-31","1974-12-31","1975-12-31","1976-12-31",
-  "1977-12-31","1978-12-31","1979-12-31","1981-06-30","1982-06-30","1983-06-30",
-  "1985-06-30","1987-12-31","1989-12-31","1990-12-31","1992-06-30","1993-06-30",
-  "1994-06-30","1995-12-31","1997-06-30","1998-12-31","2005-12-31","2008-12-31",
-  "2012-06-30","2015-06-30","2016-12-31",
-].map(d => new Date(d + "T00:00:00Z"));
-
-// The moment 32-bit signed Unix time overflows: 03:14:07 UTC, 19 January 2038.
-const Y2038_MOMENT = new Date("2038-01-19T03:14:07Z");
-
-// Relativistic time dilation estimate
-// At cruising altitude ~35,000ft (~10,700m), two effects compete:
-// Gravitational: clocks run faster (altitude above Earth) → +ve aging
-// Velocity: clocks run slower (speed ~900km/h) → -ve aging
-// Net: gravitational dominates slightly → you age *slightly* more than if on ground
-// Δt_grav ≈ g*h/c² per second ≈ 1.09e-13 per second at 10km
-// Δt_vel ≈ v²/(2c²) per second ≈ 3.13e-13 per second at 900km/h
-// Net: velocity dominates on planes → you age slightly LESS
-// Per flight hour: ~(3.13-1.09)e-13 * 3600 ≈ 7.3e-10 seconds younger = ~0.73ns younger
-// We present as "you are X nanoseconds younger than your grounded twin"
-function calcRelativisticNS(flightKey, ageYears) {
-  const opt = FLIGHT_OPTIONS.find(o => o.key === flightKey) || FLIGHT_OPTIONS[0];
-  const adultYears = Math.max(0, ageYears - 18);
-  const totalFlightHours = adultYears * opt.hoursPerYear;
-  // Net: velocity dominates, you're slightly YOUNGER
-  const nsYounger = Math.round(totalFlightHours * 0.73);
-  return { nsYounger, totalFlightHours: Math.round(totalFlightHours) };
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN CALCULATION
-// ─────────────────────────────────────────────────────────────
-function calcDissonance(dob, region, flightKey) {
-  const now = new Date();
-  const birth = new Date(dob);
-  if (isNaN(birth) || birth >= now) return null;
-
-  const springs = getDSTSprings(region, birth, now);
-  const hoursStolen = springs.length;
-
-  const msAlive = now - birth;
-  const totalHours = msAlive / 3600000;
-  const totalDays = msAlive / 86400000;
-  const years = Math.floor(totalDays / 365.25);
-  const rem = totalDays - years * 365.25;
-  const months = Math.floor(rem / 30.44);
-  const days = Math.floor(rem - months * 30.44);
-  const hours = Math.floor((msAlive % 86400000) / 3600000);
-  const minutes = Math.floor((msAlive % 3600000) / 60000);
-  const seconds = Math.floor((msAlive % 60000) / 1000);
-
-  const pctStolen = hoursStolen > 0 ? ((hoursStolen / totalHours) * 100).toFixed(6) : "0.000000";
-
-  const { nsYounger, totalFlightHours } = calcRelativisticNS(flightKey, years);
-
-  // Next spring forward
-  const reg = DST_REGIONS[region];
-  let nextSpring = null;
-  if (reg && !reg.noDST) {
-    for (let y = now.getFullYear(); y <= now.getFullYear() + 1; y++) {
-      const s = reg.getSpring(y);
-      if (s && s > now) { nextSpring = s; break; }
-    }
-  }
-  const daysToNextSteal = nextSpring ? Math.ceil((nextSpring - now) / 86400000) : null;
-
-  const leapSecondsLived = LEAP_SECOND_DATES.filter(ls => ls > birth).length;
-  const y2038Age = Math.floor((Y2038_MOMENT - birth) / (365.25 * 86400000));
-
-  return {
-    years, months, days, hours, minutes, seconds,
-    hoursStolen, minutesStolen: hoursStolen * 60,
-    totalHours: Math.floor(totalHours),
-    pctStolen,
-    nsYounger, totalFlightHours,
-    daysToNextSteal, nextSpring,
-    regionNoDST: reg && reg.noDST,
-    leapSecondsLived, y2038Age,
-  };
-}
 
 // ─────────────────────────────────────────────────────────────
 // COMBINED TIMELINE (historical + solar)
@@ -236,7 +23,7 @@ const HISTORY_EVENTS = [
   { date: "1921-05-15", label: "New York railroad storm", type: "solar", severity: "G5+", desc: "One of the largest geomagnetic storms of the 20th century. Telegraph and telephone systems across North America and Europe severely disrupted." },
   { date: "1938-01-21", label: "Great aurora storm", type: "solar", severity: "G5", desc: "Visible as far south as Portugal. Disrupted radio and early aviation navigation. One of the largest storms of the pre-Space Age era." },
   { date: "1958-02-10", label: "February 1958 superstorm", type: "solar", severity: "G5", desc: "One of the largest storms of the Space Age. Widespread power and communications disruptions across Canada and the northern US." },
-  { date: "1971-01-01", label: "Hafele–Keating experiment", type: "history", desc: "Atomic clocks flown around the world confirm relativistic time dilation. Moving clocks really do run slow." },
+  { date: "1971-01-01", label: "Hafele-Keating experiment", type: "history", desc: "Atomic clocks flown around the world confirm relativistic time dilation. Moving clocks run slow." },
   { date: "1972-08-04", label: "August 1972 storm", type: "solar", severity: "G5", desc: "Caused accidental detonation of US naval mines off Vietnam due to magnetic field disruption. Also knocked out AT&T long-lines communications." },
   { date: "1989-03-13", label: "Quebec blackout", type: "solar", severity: "G5", desc: "Knocked out power across Quebec for 9 hours, leaving 6 million people without electricity. Auroras visible in Texas. Transformer damage took months to repair." },
   { date: "1998-01-01", label: "Leap second disputes begin", type: "history", desc: "Atomic clocks now so precise they outpace Earth's irregular rotation. Leap seconds are added now and then, and software keeps tripping over them." },
@@ -288,17 +75,12 @@ const styles = `
 
   .t-tt-wrap:hover .t-tt,.t-tt-wrap:focus-within .t-tt{opacity:1;transform:translateY(0) scale(1)}
   .t-tt{background:var(--ds-color-surface-raised);border-color:var(--ds-color-border);color:var(--ds-color-text-dim);font-family:var(--ds-font-sans);font-size:var(--ds-type-label-size);box-shadow:0 12px 26px -14px var(--ds-color-shadow-color)}
-  .t-think{--think-base:var(--ds-color-text-muted);--think-highlight:var(--ds-color-text)}
   .t-stagger{--stagger-dur:var(--ds-duration-slow);--stagger-ease:var(--ds-ease-out)}
   .t-stagger .t-stagger-line:nth-child(2){transition-delay:var(--stagger-stagger)}
   .t-stagger .t-stagger-line:nth-child(3){transition-delay:calc(var(--stagger-stagger) * 2)}
 
-  @keyframes td-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-
   .td-label{font-family:var(--ds-font-sans);font-size:var(--ds-type-label-size);line-height:var(--ds-type-label-leading);font-weight:var(--ds-type-label-weight);letter-spacing:0}
   .td-num{font-variant-numeric:tabular-nums}
-
-  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;width:100%}
 
   .td-root{background:var(--bg0);color:var(--text-primary);font-family:var(--ds-font-sans);font-size:var(--ds-type-body-size);line-height:var(--ds-type-body-leading);font-weight:400;min-height:100vh;overflow-x:hidden;position:relative}
   .td-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
@@ -307,13 +89,13 @@ const styles = `
   .td-banner{background:color-mix(in srgb,var(--bg1) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0.6rem 1.4rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;color:var(--text-dim)}
   .td-live{color:var(--amber-hi);font-variant-numeric:tabular-nums}
 
-  .td-hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 1.5rem 5rem;position:relative;--stagger-stagger:300ms}
+  .td-hero{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:clamp(2rem,6vh,4rem) 1.5rem clamp(2rem,6vh,4rem);position:relative;--stagger-stagger:300ms}
   .td-hero-lines{display:flex;flex-direction:column;align-items:center}
   .td-title{font-family:var(--ds-font-display);font-size:clamp(3rem,16vw,7rem);font-weight:400;line-height:0.95;letter-spacing:-0.02em;color:var(--text-primary)}
   .td-title-em{font-style:italic;color:var(--amber-hi);display:block}
-  .td-sub{font-family:var(--ds-font-display);font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:520px;line-height:1.8;margin-top:1.8rem;font-style:italic}
-  .td-clock-wrap{margin-top:2rem;position:relative}
-  .td-clock{overflow:visible}
+  .td-sub{font-family:var(--ds-font-display);font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:520px;line-height:1.7;margin-top:1.4rem;font-style:italic}
+  .td-clock-wrap{margin-top:1.5rem;position:relative}
+  .td-clock{overflow:visible;width:clamp(120px,32vw,200px);height:auto}
   .td-clock-rim{fill:none;stroke:color-mix(in srgb,var(--border-hi) 25%,transparent);stroke-width:0.5;stroke-dasharray:2 6}
   .td-clock-const{stroke:color-mix(in srgb,var(--text-dim) 12%,transparent);stroke-width:0.6}
   .td-clock-hour{stroke:color-mix(in srgb,var(--text-primary) 35%,transparent);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:3 5}
@@ -324,7 +106,7 @@ const styles = `
   .td-clock-centre{fill:color-mix(in srgb,var(--text-primary) 90%,transparent)}
 
   .td-calc-wrap{background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-  .td-calc-inner{max-width:900px;margin:0 auto;padding:clamp(3rem,8vh,5rem) clamp(1.2rem,5vw,4rem)}
+  .td-calc-inner{max-width:900px;margin:0 auto;padding:clamp(2rem,6vh,5rem) clamp(1.2rem,5vw,4rem) clamp(3rem,8vh,5rem)}
 
   .td-h2{font-family:var(--ds-font-display);font-size:clamp(1.8rem,7vw,3rem);font-weight:400;color:var(--text-primary);line-height:1.1;margin-bottom:0.8rem}
   .td-h2 em{font-style:italic;color:var(--amber-hi)}
@@ -339,17 +121,18 @@ const styles = `
   .td-input-group .t-input{width:100%;--t-input-picker-filter:invert(0.6)}
   .td-input-group select{color-scheme:dark}
 
+  .td-hint{color:var(--text-dim);margin-top:0.5rem;max-width:62ch}
+
   .td-pills{display:flex;flex-wrap:wrap;gap:0.5rem}
   .td-pill{line-height:1.4;text-align:left;justify-content:flex-start;--t-chip-pad:0.55rem 0.85rem;--t-chip-radius:var(--ds-radius-sm)}
 
   .td-calc-btn{background:transparent;border:1px solid var(--amber);border-radius:var(--ds-radius-sm);color:var(--amber-hi);font-family:var(--ds-font-sans);font-size:var(--ds-type-ui-size);font-weight:var(--ds-type-ui-weight);padding:0.85rem 1.8rem;cursor:pointer;transition:background var(--ds-duration-base) var(--ds-ease-out),border-color var(--ds-duration-base) var(--ds-ease-out),color var(--ds-duration-base) var(--ds-ease-out);margin-top:0.5rem;align-self:flex-start;display:inline-flex;align-items:center;gap:0.6rem}
   .td-calc-btn:hover{background:color-mix(in srgb,var(--ds-color-accent) 12%,transparent)}
-  .td-calc-btn[data-state="loading"],.td-calc-btn[data-state="done"]{cursor:default}
-  .td-calc-btn[data-state="done"]{border-color:var(--green);color:var(--green)}
-  .td-calc-btn .t-check-badge{width:15px;height:15px;flex:0 0 15px;--check-ring-w:2px}
-  .td-calc-btn .t-think{font:inherit}
 
-  .td-result{animation:td-enter var(--ds-duration-slower) var(--ds-ease-out) both}
+  .td-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .td-result-h{font-family:var(--ds-font-display);font-size:clamp(1.2rem,4vw,1.5rem);font-weight:400;color:var(--text-primary);margin-bottom:0.6rem}
+  .td-result-h:focus{outline:none}
+  .td-result-h:focus-visible{outline:2px solid var(--amber-hi);outline-offset:4px}
   .td-age-display{color:var(--text-secondary);margin-bottom:2rem;line-height:2}
   .td-age-display strong{color:var(--text-primary);font-weight:500}
   .td-age-display .amber{color:var(--amber-hi)}
@@ -415,7 +198,7 @@ const styles = `
 
   .td-timeline{position:relative;padding-left:1.2rem}
   .td-timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--border-hi)}
-  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;animation:td-enter var(--ds-duration-slow) var(--ds-ease-out) both}
+  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem}
   .td-titem-inner{padding-bottom:2rem}
 
   .td-sev{--sev:var(--border-hi);font-family:var(--ds-font-sans);font-size:var(--ds-text-xs);font-weight:500;font-variant-numeric:tabular-nums;padding:0.1rem 0.4rem;border-radius:var(--ds-radius-sm);color:var(--sev);background:color-mix(in srgb,var(--sev) 13%,transparent);border:1px solid color-mix(in srgb,var(--sev) 27%,transparent)}
@@ -576,25 +359,6 @@ function LiveTime() {
   return <span className="td-live">{t}</span>;
 }
 
-// Thin amber readout under the banner tracking how far down the page
-// you are — an instrument-panel nod that also just helps orient you
-// on what is otherwise one very long scroll.
-function ScrollProgress() {
-  const [pct, setPct] = useState(0);
-  useEffect(() => {
-    const onScroll = () => {
-      const h = document.documentElement;
-      const scrollable = h.scrollHeight - h.clientHeight;
-      setPct(scrollable > 0 ? Math.min(1, h.scrollTop / scrollable) : 0);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
-  }, []);
-  return <div className="td-progress" style={{ transform: `scaleX(${pct})` }} />;
-}
-
 /* t-stagger plays on .is-shown rather than on mount, so the class goes on a
    frame later — set in the same paint as the markup and there is no
    from-state for the browser to transition out of. */
@@ -625,7 +389,7 @@ function LiveAge({dob,region,flightKey}) {
 
 // Eases the headline figure up from 0 once, then holds. Skips straight to
 // the value under prefers-reduced-motion.
-function CountUp({ value, duration = 650 }) {
+function CountUp({ value, duration = 650, format = v => v.toLocaleString("en-GB") }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
     const dur = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration;
@@ -634,61 +398,73 @@ function CountUp({ value, duration = 650 }) {
     const tick = (now) => {
       const p = dur <= 0 ? 1 : Math.min((now - start) / dur, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(Math.round(value * eased));
+      setDisplay(p < 1 ? Math.round(value * eased) : value);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
-  return display.toLocaleString("en-GB");
+  return format(display);
 }
+
+/* What a screen reader hears when the results appear. The age ticks every
+   second, so it stays out of the live region. */
+function summarise(r) {
+  const skipped = r.jumps > 0
+    ? `${fmtHours(r.hoursSkipped)} hours skipped since you were born.`
+    : "No hours skipped since you were born.";
+  return `Results: ${skipped} About ${r.nsYounger.toLocaleString("en-GB")} nanoseconds younger from flying.`;
+}
+
+/* dobProblem() in src/lib/age.js decides which; the input's min and max
+   match the range message. */
+const DOB_ERRORS = {
+  empty: "Enter your date of birth.",
+  invalid: "Enter a date that exists, like 15 June 1985.",
+  range: "Enter a date between 1 January 1900 and today.",
+};
 
 function DissonanceCalc() {
   const [step, setStep] = useState(1); // 1=inputs, 2=results
   const [dob, setDob] = useState("");
-  const [region, setRegion] = useState("uk");
+  const [region, setRegion] = useState(DEFAULT_REGION);
   const [flight, setFlight] = useState("annual");
   const [result, setResult] = useState(null);
-  const [calcState, setCalcState] = useState("idle"); // idle | loading | done
   const [dobError, setDobError] = useState("");
   // The shake is state rather than a class added to the node: React rewrites
   // className on the re-render that sets dobError, which would wipe it.
   const [shaking, setShaking] = useState(false);
-  const revertTimer = useRef(null);
+  /* Where focus goes next: the results heading when they appear, the date
+     input after "Start again". Without this it fell back to the page top. */
+  const focusNext = useRef(null);
+  const resultsHeading = useRef(null);
+  const dobInput = useRef(null);
 
-  useEffect(() => () => window.clearTimeout(revertTimer.current), []);
+  useEffect(() => {
+    const target = focusNext.current === "results" ? resultsHeading.current
+      : focusNext.current === "input" ? dobInput.current : null;
+    focusNext.current = null;
+    target?.focus();
+  }, [step]);
 
   const calculate = useCallback(() => {
-    if (calcState !== "idle") return;
-    const r = calcDissonance(dob, region, flight);
-    if (!r) {
-      // is-error and is-shaking come from ds/css/components/field.css; the
-      // message clears itself after 3 seconds.
-      setDobError(dob
-        ? "Pick a date between 1900 and today."
-        : "Enter your date of birth first.");
+    const problem = dobProblem(dob);
+    if (problem) {
+      // is-error and is-shaking come from ds/css/components/field.css. The
+      // message stays until the date changes.
+      setDobError(DOB_ERRORS[problem]);
       // Drop and re-add in separate frames so the shake can replay.
       setShaking(false);
       requestAnimationFrame(() => setShaking(true));
-      window.clearTimeout(revertTimer.current);
-      revertTimer.current = window.setTimeout(() => setDobError(""), 3000);
       return;
     }
     setDobError("");
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) { setResult(r); setStep(2); return; }
-    setCalcState("loading");
-    window.setTimeout(() => {
-      setCalcState("done");
-      window.setTimeout(() => {
-        setResult(r);
-        setStep(2);
-        setCalcState("idle");
-      }, 260);
-    }, 550);
-  }, [dob, region, flight, calcState]);
+    setResult(calcDissonance(dob, region, flight));
+    focusNext.current = "results";
+    setStep(2);
+  }, [dob, region, flight]);
 
-  const reset = () => { setStep(1); setResult(null); };
+  const reset = () => { focusNext.current = "input"; setStep(1); setResult(null); };
 
   const fmtDate = d => d.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
   const flightOpt = FLIGHT_OPTIONS.find(o=>o.key===flight);
@@ -702,6 +478,8 @@ function DissonanceCalc() {
           Give it your date of birth, where you grew up and how much you fly. It counts the clock-hours daylight saving has skipped since you were born, and works out how much younger flying has made you.
         </p>
 
+        <p className="td-sr" role="status">{step === 2 && result ? summarise(result) : ""}</p>
+
         {step === 1 && (
           <div className="td-steps">
             <div>
@@ -711,12 +489,12 @@ function DissonanceCalc() {
                   <div className={`t-input-wrap${dobError?" is-error":""}`}>
                     <div className={`t-input${dobError?" is-error":""}${shaking?" is-shaking":""}`}
                       onAnimationEnd={()=>setShaking(false)}>
-                      <input type="date" value={dob}
+                      <input type="date" value={dob} ref={dobInput}
                         aria-label="Date of birth"
-                        max={new Date().toISOString().split("T")[0]} min="1900-01-01"
+                        max={localISODate()} min={EARLIEST_DOB}
                         aria-invalid={dobError?"true":undefined}
                         aria-describedby="td-dob-error"
-                        onChange={e=>{setDob(e.target.value);setDobError("");}}
+                        onChange={e=>{if(e.target.value!==dob){setDob(e.target.value);setDobError("");}}}
                         onKeyDown={e=>e.key==="Enter"&&calculate()}
                       />
                     </div>
@@ -733,12 +511,19 @@ function DissonanceCalc() {
               <div className="td-input-row">
                 <div className="td-input-group">
                   <div className="t-input t-input--select">
-                    <select value={region} aria-label="Where did you grow up?" onChange={e=>setRegion(e.target.value)}>
-                      {Object.entries(DST_REGIONS).map(([k,v])=>(
-                        <option key={k} value={k}>{v.label}</option>
+                    <select value={region} aria-label="Where did you grow up?" aria-describedby="td-region-hint" onChange={e=>setRegion(e.target.value)}>
+                      {REGION_GROUPS.map(([group, items])=>(
+                        <optgroup key={group} label={group}>
+                          {items.map(r=>(
+                            <option key={r.key} value={r.key}>{r.label}</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>
+                  <p className="td-hint td-label" id="td-region-hint">
+                    Before the 1960s the US set clocks city by city and Europe country by country, so older years follow the city in brackets. The dates come from the tz database, which is what your phone uses too.
+                  </p>
                 </div>
               </div>
             </div>
@@ -754,64 +539,35 @@ function DissonanceCalc() {
               </div>
             </div>
 
-            <button className="td-calc-btn" data-state={calcState} onClick={calculate} disabled={calcState !== "idle"} aria-live="polite">
-              <span className="t-check-blur-wrap" hidden={calcState === "idle"} aria-hidden="true">
-                <span className="t-check-badge" data-state={calcState === "done" ? "done" : "loading"}>
-                  <span className="t-check-ring"/>
-                  <span className="t-check-arc"/>
-                  <span className="t-check-fill"/>
-                  <span className="t-check-disc">
-                    <svg viewBox="0 0 22 22" fill="none">
-                      <path className="t-check-mark" d="M6 11.5L9.5 15L16 8" style={{"--check-mark-len":"15"}}/>
-                    </svg>
-                  </span>
-                </span>
-              </span>
-              <span className="td-calc-label">
-                {calcState === "loading" ? (
-                  <span className="t-think">
-                    <span className="t-think-sizer">Working it out…</span>
-                    <span className="t-think-text" data-text="Working it out…">Working it out…</span>
-                  </span>
-                ) : calcState === "done" ? "Done" : "Work it out"}
-              </span>
-            </button>
+            <button className="td-calc-btn" onClick={calculate}>Work it out</button>
           </div>
         )}
 
         {step === 2 && result && (
           <div className="td-result">
+            <h3 className="td-result-h" ref={resultsHeading} tabIndex={-1}>Since you were born</h3>
             <LiveAge dob={dob} region={region} flightKey={flight}/>
 
-            {result.regionNoDST ? (
+            {result.jumps === 0 ? (
               <div className="td-no-dst">
                 <p>
-                  <strong>You grew up somewhere without daylight saving,</strong> so your clocks never skipped an hour. Flying, leap seconds and the 2038 bug still apply, and they're below.
+                  {result.regionHasZone
+                    ? <><strong>The clocks haven't gone forward in {result.regionLabel} since you were born,</strong> so they've never skipped an hour on you.</>
+                    : <><strong>You grew up somewhere the clocks never change,</strong> so they've never skipped an hour on you.</>}
+                  {" "}Flying, leap seconds and the 2038 bug still apply, and they're below.
                 </p>
               </div>
             ) : (
               <div className="td-stolen-hero">
-                <div className="td-stolen-num"><CountUp value={result.hoursStolen}/></div>
+                <div className="td-stolen-num"><CountUp value={result.hoursSkipped} format={fmtHours}/></div>
                 <div className="td-stolen-label td-label">Hours skipped since you were born</div>
                 <div className="td-stolen-sub td-num">
-                  That's {n(result.minutesStolen)} minutes, 1 hour each spring when the clocks went forward.
+                  That's {n(result.minutesSkipped)} minutes, from {result.jumps === 1 ? "the 1 time" : `the ${result.jumps} times`} the clocks went forward, or {result.pctSkipped}% of your life so far.
                 </div>
               </div>
             )}
 
             <div className="td-metric-grid">
-              {!result.regionNoDST && (
-                <div className="td-metric">
-                  <div className="td-metric-val amber">{result.hoursStolen}</div>
-                  <div className="td-metric-lbl td-label">Hours skipped</div>
-                </div>
-              )}
-              {!result.regionNoDST && (
-                <div className="td-metric">
-                  <div className="td-metric-val">{result.pctStolen}%</div>
-                  <div className="td-metric-lbl td-label">Of your life so far</div>
-                </div>
-              )}
               <div className="td-metric">
                 <div className="td-metric-val green">{n(result.nsYounger)}ns</div>
                 <div className="td-metric-lbl td-label">Younger than if you'd never flown</div>
@@ -820,18 +576,6 @@ function DissonanceCalc() {
                 <div className="td-metric-val cold">{n(result.totalFlightHours)}h</div>
                 <div className="td-metric-lbl td-label">Hours in the air (estimate)</div>
               </div>
-              {result.regionNoDST && (
-                <div className="td-metric">
-                  <div className="td-metric-val mist">{n(result.totalHours)}</div>
-                  <div className="td-metric-lbl td-label">Hours lived</div>
-                </div>
-              )}
-              {result.regionNoDST && (
-                <div className="td-metric">
-                  <div className="td-metric-val amber">0</div>
-                  <div className="td-metric-lbl td-label">Hours skipped by daylight saving</div>
-                </div>
-              )}
               <div className="td-metric">
                 <div className="td-metric-val mist">{result.leapSecondsLived}</div>
                 <div className="td-metric-lbl td-label">Leap seconds lived through</div>
@@ -843,12 +587,12 @@ function DissonanceCalc() {
             </div>
 
             <div className="td-insight td-num">
-              {!result.regionNoDST && (
+              {result.jumps > 0 && (
                 <p>
-                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{result.hoursStolen} ({result.pctStolen}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
+                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{fmtHours(result.hoursSkipped)}</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
                 </p>
               )}
-              {!result.regionNoDST && (
+              {result.jumps > 0 && (
                 <p>
                   You get an hour back when the clocks go back in autumn, but it's a repeat of 1am. The one skipped in spring stays skipped.
                 </p>
@@ -874,13 +618,13 @@ function DissonanceCalc() {
               )}
             </div>
 
-            {result.daysToNextSteal && (
+            {result.daysToNextJump && (
               <div className="td-next-steal">
                 <div>
                   <div className="td-next-label td-label">Next skipped hour</div>
-                  <div className="td-next-val">{fmtDate(result.nextSpring)}</div>
+                  <div className="td-next-val">{fmtDate(new Date(result.nextJump.localDate.year, result.nextJump.localDate.month - 1, result.nextJump.localDate.day))}</div>
                 </div>
-                <div className="td-next-days td-label td-num">In {result.daysToNextSteal} days</div>
+                <div className="td-next-days td-label td-num">In {result.daysToNextJump} days</div>
               </div>
             )}
 
@@ -952,10 +696,10 @@ function CombinedTimeline() {
                 {item.severity && (
                   // tabIndex so the tooltip opens on keyboard focus too.
                   <span className="t-tt-wrap td-sev-wrap">
-                    <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0}>
+                    <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0} aria-describedby={`td-sev-${item.date}`}>
                       {item.severity}
                     </span>
-                    <span className="t-tt" role="tooltip">{SEVERITY[item.severity].note}</span>
+                    <span className="t-tt" role="tooltip" id={`td-sev-${item.date}`}>{SEVERITY[item.severity].note}</span>
                   </span>
                 )}
               </div>
@@ -1021,13 +765,14 @@ export default function App() {
     <div className="td-root">
       <style>{styles}</style>
       <Starfield/>
-      <ScrollProgress/>
       <div className="td-main">
 
-        <div className="td-banner td-label">
+        <header className="td-banner td-label">
           <span>Time Dissonance</span>
           <LiveTime/>
-        </div>
+        </header>
+
+        <main>
 
         <section className="td-hero">
           <Stagger className="td-hero-lines">
@@ -1093,10 +838,11 @@ export default function App() {
         <div className="td-divider"/>
 
         <CombinedTimeline/>
+        </main>
 
         <footer className="td-footer">
           <span className="td-footer-brand">Time <em>Dissonance</em></span>
-          <span className="td-footer-note td-label">Figures are estimates. Each card links to its source.</span>
+          <span className="td-footer-note td-label">Figures are estimates. Each card links to its source. Build {__BUILD_SHA__}</span>
         </footer>
 
       </div>

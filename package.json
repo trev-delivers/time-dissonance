@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "ds:audit": "node scripts/audit-ds.mjs",
     "ds:audit:ci": "node scripts/audit-ds.mjs --max 15",
-    "ds:check": "node scripts/sync-ds.mjs --check"
+    "ds:check": "node scripts/sync-ds.mjs --check",
+    "test": "vitest run",
+    "dst:generate": "node scripts/gen-dst.mjs",
+    "dst:check": "node scripts/gen-dst.mjs --check",
+    "smoke": "playwright test",
+    "check": "npm run lint && npm test && npm run dst:check && npm run build && npm run ds:audit:ci && npm run smoke"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -19,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.64.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
@@ -26,6 +32,10 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

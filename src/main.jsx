@@ -1,12 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 /* The design system: primitives, this app's theme, base behaviours and
-   components. Ahead of index.css and App's own styles so either can override. */
+   components. Ahead of App's own styles so they can override. */
 import '../ds/css/primitives.css'
 import '../ds/css/themes/dissonance.css'
 import '../ds/css/base.css'
 import '../ds/css/components.css'
-import './index.css'
 import App from './App.jsx'
 import { inject } from '@vercel/analytics'
 
