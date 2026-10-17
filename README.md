@@ -13,7 +13,7 @@ A single-page site about the hours daylight saving skips, and the other ways clo
 Enter your date of birth, where you grew up, and how often you fly. It works out:
 
 - **Your exact age**, ticking live to the second
-- **DST hours that didn't exist** — every spring the clocks skip forward and one hour simply wasn't there. Not lost, not stolen. Absent. Counts every spring-forward you've lived through, using historically accurate DST rules going back to 1916
+- **DST hours that didn't exist** — every spring the clocks skip forward and one hour simply wasn't there. Not lost, not stolen. Absent. Counts every time the clocks went forward since you were born, using the tz database
 - **Relativistic nanoseconds younger** — flying at altitude and speed means time runs fractionally slower for you than for someone who stayed on the ground. About 0.73 nanoseconds younger per flight hour
 - **Leap seconds you've lived through** — out of the 27 ever inserted into UTC since 1972 (none since 2016, and the world has voted to stop adding them by 2035)
 - **Your age when 32-bit Unix time overflows** — 03:14:07 UTC, 19 January 2038
@@ -50,9 +50,9 @@ A chronological record of events that disrupted how time was experienced, from B
 
 ### DST hours
 
-Historically accurate DST rules for the UK, EU, US, Canada, Australia, and New Zealand, going back to each region's start date (UK: 1916, US: 1918, etc.). For each year between your birth and today, it checks whether a spring-forward occurred after your birth date; each one that did adds one hour to your total.
+Every date comes from the IANA tz database, the file phones and browsers use to know when clocks change. `npm run dst:generate` reads each region's history out of Node's copy of it and writes `src/lib/dst-table.js`; the tests check that table against the database and against known years. It counts every time the clocks went forward after the day you were born, from 1900 on.
 
-Regions without DST (Japan, India, most of Africa) show zero lost hours.
+Each region is a country, a US time zone or an Australian state, with a city in brackets. Before the 1960s the US set its clocks city by city and Europe country by country, so for those years the count follows that city. New York kept daylight saving from 1946 to 1966, for example, while Denver had none.
 
 ### Relativistic time dilation
 

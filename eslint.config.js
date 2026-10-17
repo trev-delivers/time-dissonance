@@ -11,10 +11,11 @@ export default defineConfig([
      (It does not currently pass them: ds/js/behaviours.js references an
      undefined `btn` twice in mountConfetti, where the parameter is named
      `trigger`. That is a real ReferenceError at mount, reported upstream in
-     ds-proposals/README.md, not something to silence by editing ds/.) */
-  globalIgnores(['dist', 'ds']),
+     ds-proposals/README.md, not something to silence by editing ds/.)
+     .claude/ is the engineer skill, kept in step with the obvious repo. */
+  globalIgnores(['dist', 'ds', '.claude', 'test-results', 'playwright-report']),
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,mjs}'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,
@@ -32,5 +33,10 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
+  },
+  /* Scripts, config and browser tests run in Node, not the page. */
+  {
+    files: ['scripts/**', '*.config.js', 'tests/**'],
+    languageOptions: { globals: globals.node },
   },
 ])

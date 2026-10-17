@@ -1,128 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Starfield from "./Starfield.jsx";
+import { REGIONS, REGION_BY_KEY, DEFAULT_REGION } from "./lib/regions.js";
+import { nextJump, skippedSince } from "./lib/dst.js";
 
-// ─────────────────────────────────────────────────────────────
-// DST REGION DATA
-// Each region has: name, label, rules per era
-// rule: { from, to, springMonth (0-indexed), springRule, fallMonth, fallRule }
-// springRule: "lastSun", "lastSun", or specific date logic
-// ─────────────────────────────────────────────────────────────
+/* The region list as [group, regions] pairs for the <optgroup>s. */
+const REGION_GROUPS = [...new Set(REGIONS.map(r => r.group))].map(g => [g, REGIONS.filter(r => r.group === g)]);
 
-function lastSundayOf(year, month) {
-  const last = new Date(year, month + 1, 0);
-  const dow = last.getDay();
-  return new Date(year, month, last.getDate() - (dow === 0 ? 0 : dow));
-}
+/* Hours skipped are whole except where a zone jumped by half an hour. */
+const fmtHours = h => Number.isInteger(h) ? h.toLocaleString("en-GB") : h.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
-function firstSundayOf(year, month) {
-  const first = new Date(year, month, 1);
-  const dow = first.getDay();
-  return new Date(year, month, 1 + (dow === 0 ? 0 : 7 - dow));
-}
-
-function secondSundayOf(year, month) {
-  const f = firstSundayOf(year, month);
-  return new Date(year, month, f.getDate() + 7);
-}
-
-// Returns array of { year, springForward } dates for a region between birth and now
-function getDSTSprings(regionKey, birthDate, toDate) {
-  const region = DST_REGIONS[regionKey];
-  if (!region || region.noDST) return [];
-  const springs = [];
-  for (let y = birthDate.getFullYear(); y <= toDate.getFullYear(); y++) {
-    const spring = region.getSpring(y);
-    if (spring && spring > birthDate && spring <= toDate) {
-      springs.push(spring);
-    }
-  }
-  return springs;
-}
-
-const DST_REGIONS = {
-  uk: {
-    label: "United Kingdom",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1916) return null; // No DST before 1916
-      if (y === 1916) return new Date(1916, 4, 21); // May 21
-      if (y >= 1917 && y <= 1939) return lastSundayOf(y, 2); // Last Sun March
-      if (y >= 1940 && y <= 1945) return null; // Double BST / war time (complex — skip net)
-      if (y >= 1946 && y <= 1967) return lastSundayOf(y, 2);
-      if (y === 1968) return null; // UK stayed on BST all year 1968–1971
-      if (y === 1969) return null;
-      if (y === 1970) return null;
-      if (y === 1971) return null;
-      if (y >= 1972) return lastSundayOf(y, 2); // Last Sun March
-      return null;
-    },
-  },
-  eu: {
-    label: "Continental Europe",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1916) return null;
-      if (y >= 1916 && y <= 1939) return lastSundayOf(y, 2);
-      if (y >= 1940 && y <= 1945) return null; // War disruptions
-      if (y >= 1946 && y <= 1979) return lastSundayOf(y, 2); // approximate
-      if (y >= 1980) return lastSundayOf(y, 2); // Harmonised EU: last Sun March
-      return null;
-    },
-  },
-  us: {
-    label: "United States",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1918) return null;
-      if (y >= 1918 && y <= 1919) return lastSundayOf(y, 2);
-      if (y >= 1920 && y <= 1941) return null; // No federal DST
-      if (y >= 1942 && y <= 1945) return new Date(y, 1, 9); // War time year-round
-      if (y >= 1946 && y <= 1966) return lastSundayOf(y, 3); // Last Sun April
-      if (y >= 1967 && y <= 2006) return lastSundayOf(y, 3); // Last Sun April
-      if (y >= 2007) return secondSundayOf(y, 2); // 2nd Sun March (Energy Policy Act)
-      return null;
-    },
-  },
-  au: {
-    label: "Australia (SE)",
-    noDST: false,
-    getSpring: (y) => {
-      // Southern hemisphere: spring = October
-      if (y < 1917) return null;
-      // Australia DST varies by state — using VIC/NSW/ACT/TAS/SA approximation
-      if (y >= 2008) return firstSundayOf(y, 9); // First Sun October
-      if (y >= 1971) return lastSundayOf(y, 9); // Last Sun October
-      if (y >= 1944) return new Date(y, 2, 1); // approx March (complex war era)
-      return null;
-    },
-  },
-  nz: {
-    label: "New Zealand",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1927) return null;
-      // NZ spring = September/October
-      if (y >= 2007) return lastSundayOf(y, 8); // Last Sun September
-      if (y >= 1974) return lastSundayOf(y, 9); // Last Sun October
-      return null;
-    },
-  },
-  ca: {
-    label: "Canada",
-    noDST: false,
-    getSpring: (y) => {
-      if (y < 1918) return null;
-      if (y >= 2007) return secondSundayOf(y, 2); // Follows US
-      if (y >= 1967) return lastSundayOf(y, 3);
-      return null;
-    },
-  },
-  none: {
-    label: "No DST (e.g. Japan, India, most of Africa)",
-    noDST: true,
-    getSpring: () => null,
-  },
-};
 
 // ─────────────────────────────────────────────────────────────
 // FLIGHT FREQUENCY OPTIONS
@@ -180,8 +66,9 @@ function calcDissonance(dob, region, flightKey) {
   const birth = new Date(dob);
   if (isNaN(birth) || birth >= now) return null;
 
-  const springs = getDSTSprings(region, birth, now);
-  const hoursStolen = springs.length;
+  const reg = REGION_BY_KEY[region] ?? REGION_BY_KEY.none;
+  const skipped = reg.zone ? skippedSince(reg.key, dob, now) : { count: 0, hours: 0, seconds: 0 };
+  const hoursStolen = skipped.hours;
 
   const msAlive = now - birth;
   const totalHours = msAlive / 3600000;
@@ -198,28 +85,23 @@ function calcDissonance(dob, region, flightKey) {
 
   const { nsYounger, totalFlightHours } = calcRelativisticNS(flightKey, years);
 
-  // Next spring forward
-  const reg = DST_REGIONS[region];
-  let nextSpring = null;
-  if (reg && !reg.noDST) {
-    for (let y = now.getFullYear(); y <= now.getFullYear() + 1; y++) {
-      const s = reg.getSpring(y);
-      if (s && s > now) { nextSpring = s; break; }
-    }
-  }
-  const daysToNextSteal = nextSpring ? Math.ceil((nextSpring - now) / 86400000) : null;
+  const next = reg.zone ? nextJump(reg.key, now) : null;
+  const nextSpring = next ? new Date(next.localDate.year, next.localDate.month - 1, next.localDate.day) : null;
+  const daysToNextSteal = next ? Math.ceil((next.at - now) / 86400000) : null;
 
   const leapSecondsLived = LEAP_SECOND_DATES.filter(ls => ls > birth).length;
   const y2038Age = Math.floor((Y2038_MOMENT - birth) / (365.25 * 86400000));
 
   return {
     years, months, days, hours, minutes, seconds,
-    hoursStolen, minutesStolen: hoursStolen * 60,
+    hoursStolen, jumps: skipped.count, minutesStolen: Math.round(skipped.seconds / 60),
     totalHours: Math.floor(totalHours),
     pctStolen,
     nsYounger, totalFlightHours,
     daysToNextSteal, nextSpring,
-    regionNoDST: reg && reg.noDST,
+    regionNoDST: skipped.count === 0,
+    regionHasZone: Boolean(reg.zone),
+    regionLabel: reg.label,
     leapSecondsLived, y2038Age,
   };
 }
@@ -338,6 +220,8 @@ const styles = `
   .td-input-group{display:flex;flex-direction:column;gap:0.4rem;flex:1;min-width:160px}
   .td-input-group .t-input{width:100%;--t-input-picker-filter:invert(0.6)}
   .td-input-group select{color-scheme:dark}
+
+  .td-hint{color:var(--text-dim);margin-top:0.5rem;max-width:62ch}
 
   .td-pills{display:flex;flex-wrap:wrap;gap:0.5rem}
   .td-pill{line-height:1.4;text-align:left;justify-content:flex-start;--t-chip-pad:0.55rem 0.85rem;--t-chip-radius:var(--ds-radius-sm)}
@@ -625,7 +509,7 @@ function LiveAge({dob,region,flightKey}) {
 
 // Eases the headline figure up from 0 once, then holds. Skips straight to
 // the value under prefers-reduced-motion.
-function CountUp({ value, duration = 650 }) {
+function CountUp({ value, duration = 650, format = v => v.toLocaleString("en-GB") }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
     const dur = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration;
@@ -634,19 +518,19 @@ function CountUp({ value, duration = 650 }) {
     const tick = (now) => {
       const p = dur <= 0 ? 1 : Math.min((now - start) / dur, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(Math.round(value * eased));
+      setDisplay(p < 1 ? Math.round(value * eased) : value);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
-  return display.toLocaleString("en-GB");
+  return format(display);
 }
 
 function DissonanceCalc() {
   const [step, setStep] = useState(1); // 1=inputs, 2=results
   const [dob, setDob] = useState("");
-  const [region, setRegion] = useState("uk");
+  const [region, setRegion] = useState(DEFAULT_REGION);
   const [flight, setFlight] = useState("annual");
   const [result, setResult] = useState(null);
   const [calcState, setCalcState] = useState("idle"); // idle | loading | done
@@ -733,12 +617,19 @@ function DissonanceCalc() {
               <div className="td-input-row">
                 <div className="td-input-group">
                   <div className="t-input t-input--select">
-                    <select value={region} aria-label="Where did you grow up?" onChange={e=>setRegion(e.target.value)}>
-                      {Object.entries(DST_REGIONS).map(([k,v])=>(
-                        <option key={k} value={k}>{v.label}</option>
+                    <select value={region} aria-label="Where did you grow up?" aria-describedby="td-region-hint" onChange={e=>setRegion(e.target.value)}>
+                      {REGION_GROUPS.map(([group, items])=>(
+                        <optgroup key={group} label={group}>
+                          {items.map(r=>(
+                            <option key={r.key} value={r.key}>{r.label}</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>
+                  <p className="td-hint td-label" id="td-region-hint">
+                    Before the 1960s the US set clocks city by city and Europe country by country, so older years follow the city in brackets. The dates come from the tz database, which is what your phone uses too.
+                  </p>
                 </div>
               </div>
             </div>
@@ -786,15 +677,18 @@ function DissonanceCalc() {
             {result.regionNoDST ? (
               <div className="td-no-dst">
                 <p>
-                  <strong>You grew up somewhere without daylight saving,</strong> so your clocks never skipped an hour. Flying, leap seconds and the 2038 bug still apply, and they're below.
+                  {result.regionHasZone
+                    ? <><strong>The clocks haven't gone forward in {result.regionLabel} since you were born,</strong> so they've never skipped an hour on you.</>
+                    : <><strong>You grew up somewhere the clocks never change,</strong> so they've never skipped an hour on you.</>}
+                  {" "}Flying, leap seconds and the 2038 bug still apply, and they're below.
                 </p>
               </div>
             ) : (
               <div className="td-stolen-hero">
-                <div className="td-stolen-num"><CountUp value={result.hoursStolen}/></div>
+                <div className="td-stolen-num"><CountUp value={result.hoursStolen} format={fmtHours}/></div>
                 <div className="td-stolen-label td-label">Hours skipped since you were born</div>
                 <div className="td-stolen-sub td-num">
-                  That's {n(result.minutesStolen)} minutes, 1 hour each spring when the clocks went forward.
+                  That's {n(result.minutesStolen)} minutes, from {result.jumps === 1 ? "the 1 time" : `the ${result.jumps} times`} the clocks went forward.
                 </div>
               </div>
             )}
@@ -802,7 +696,7 @@ function DissonanceCalc() {
             <div className="td-metric-grid">
               {!result.regionNoDST && (
                 <div className="td-metric">
-                  <div className="td-metric-val amber">{result.hoursStolen}</div>
+                  <div className="td-metric-val amber">{fmtHours(result.hoursStolen)}</div>
                   <div className="td-metric-lbl td-label">Hours skipped</div>
                 </div>
               )}
@@ -845,7 +739,7 @@ function DissonanceCalc() {
             <div className="td-insight td-num">
               {!result.regionNoDST && (
                 <p>
-                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{result.hoursStolen} ({result.pctStolen}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
+                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{fmtHours(result.hoursStolen)} ({result.pctStolen}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
                 </p>
               )}
               {!result.regionNoDST && (
