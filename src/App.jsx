@@ -79,12 +79,8 @@ const styles = `
   .t-stagger .t-stagger-line:nth-child(2){transition-delay:var(--stagger-stagger)}
   .t-stagger .t-stagger-line:nth-child(3){transition-delay:calc(var(--stagger-stagger) * 2)}
 
-  @keyframes td-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-
   .td-label{font-family:var(--ds-font-sans);font-size:var(--ds-type-label-size);line-height:var(--ds-type-label-leading);font-weight:var(--ds-type-label-weight);letter-spacing:0}
   .td-num{font-variant-numeric:tabular-nums}
-
-  .td-progress{position:fixed;top:0;left:0;height:2px;background:var(--amber-hi);z-index:200;transform-origin:0 50%;width:100%}
 
   .td-root{background:var(--bg0);color:var(--text-primary);font-family:var(--ds-font-sans);font-size:var(--ds-type-body-size);line-height:var(--ds-type-body-leading);font-weight:400;min-height:100vh;overflow-x:hidden;position:relative}
   .td-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
@@ -93,13 +89,13 @@ const styles = `
   .td-banner{background:color-mix(in srgb,var(--bg1) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:0.6rem 1.4rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;color:var(--text-dim)}
   .td-live{color:var(--amber-hi);font-variant-numeric:tabular-nums}
 
-  .td-hero{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4rem 1.5rem 5rem;position:relative;--stagger-stagger:300ms}
+  .td-hero{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:clamp(2rem,6vh,4rem) 1.5rem clamp(2rem,6vh,4rem);position:relative;--stagger-stagger:300ms}
   .td-hero-lines{display:flex;flex-direction:column;align-items:center}
   .td-title{font-family:var(--ds-font-display);font-size:clamp(3rem,16vw,7rem);font-weight:400;line-height:0.95;letter-spacing:-0.02em;color:var(--text-primary)}
   .td-title-em{font-style:italic;color:var(--amber-hi);display:block}
-  .td-sub{font-family:var(--ds-font-display);font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:520px;line-height:1.8;margin-top:1.8rem;font-style:italic}
-  .td-clock-wrap{margin-top:2rem;position:relative}
-  .td-clock{overflow:visible}
+  .td-sub{font-family:var(--ds-font-display);font-size:clamp(1rem,3.5vw,1.2rem);color:var(--text-secondary);max-width:520px;line-height:1.7;margin-top:1.4rem;font-style:italic}
+  .td-clock-wrap{margin-top:1.5rem;position:relative}
+  .td-clock{overflow:visible;width:clamp(120px,32vw,200px);height:auto}
   .td-clock-rim{fill:none;stroke:color-mix(in srgb,var(--border-hi) 25%,transparent);stroke-width:0.5;stroke-dasharray:2 6}
   .td-clock-const{stroke:color-mix(in srgb,var(--text-dim) 12%,transparent);stroke-width:0.6}
   .td-clock-hour{stroke:color-mix(in srgb,var(--text-primary) 35%,transparent);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:3 5}
@@ -110,7 +106,7 @@ const styles = `
   .td-clock-centre{fill:color-mix(in srgb,var(--text-primary) 90%,transparent)}
 
   .td-calc-wrap{background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-  .td-calc-inner{max-width:900px;margin:0 auto;padding:clamp(3rem,8vh,5rem) clamp(1.2rem,5vw,4rem)}
+  .td-calc-inner{max-width:900px;margin:0 auto;padding:clamp(2rem,6vh,5rem) clamp(1.2rem,5vw,4rem) clamp(3rem,8vh,5rem)}
 
   .td-h2{font-family:var(--ds-font-display);font-size:clamp(1.8rem,7vw,3rem);font-weight:400;color:var(--text-primary);line-height:1.1;margin-bottom:0.8rem}
   .td-h2 em{font-style:italic;color:var(--amber-hi)}
@@ -137,7 +133,6 @@ const styles = `
   .td-result-h{font-family:var(--ds-font-display);font-size:clamp(1.2rem,4vw,1.5rem);font-weight:400;color:var(--text-primary);margin-bottom:0.6rem}
   .td-result-h:focus{outline:none}
   .td-result-h:focus-visible{outline:2px solid var(--amber-hi);outline-offset:4px}
-  .td-result{animation:td-enter var(--ds-duration-slower) var(--ds-ease-out) both}
   .td-age-display{color:var(--text-secondary);margin-bottom:2rem;line-height:2}
   .td-age-display strong{color:var(--text-primary);font-weight:500}
   .td-age-display .amber{color:var(--amber-hi)}
@@ -203,7 +198,7 @@ const styles = `
 
   .td-timeline{position:relative;padding-left:1.2rem}
   .td-timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--border-hi)}
-  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem;animation:td-enter var(--ds-duration-slow) var(--ds-ease-out) both}
+  .td-titem{position:relative;padding:0 0 0.1rem 1.5rem}
   .td-titem-inner{padding-bottom:2rem}
 
   .td-sev{--sev:var(--border-hi);font-family:var(--ds-font-sans);font-size:var(--ds-text-xs);font-weight:500;font-variant-numeric:tabular-nums;padding:0.1rem 0.4rem;border-radius:var(--ds-radius-sm);color:var(--sev);background:color-mix(in srgb,var(--sev) 13%,transparent);border:1px solid color-mix(in srgb,var(--sev) 27%,transparent)}
@@ -362,25 +357,6 @@ function LiveTime() {
   const [t,setT]=useState("");
   useEffect(()=>{const tick=()=>{const n=new Date();setT([n.getHours(),n.getMinutes(),n.getSeconds()].map(v=>String(v).padStart(2,"0")).join(":"));};tick();const id=setInterval(tick,1000);return()=>clearInterval(id);},[]);
   return <span className="td-live">{t}</span>;
-}
-
-// Thin amber readout under the banner tracking how far down the page
-// you are — an instrument-panel nod that also just helps orient you
-// on what is otherwise one very long scroll.
-function ScrollProgress() {
-  const [pct, setPct] = useState(0);
-  useEffect(() => {
-    const onScroll = () => {
-      const h = document.documentElement;
-      const scrollable = h.scrollHeight - h.clientHeight;
-      setPct(scrollable > 0 ? Math.min(1, h.scrollTop / scrollable) : 0);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
-  }, []);
-  return <div className="td-progress" style={{ transform: `scaleX(${pct})` }} />;
 }
 
 /* t-stagger plays on .is-shown rather than on mount, so the class goes on a
@@ -586,24 +562,12 @@ function DissonanceCalc() {
                 <div className="td-stolen-num"><CountUp value={result.hoursSkipped} format={fmtHours}/></div>
                 <div className="td-stolen-label td-label">Hours skipped since you were born</div>
                 <div className="td-stolen-sub td-num">
-                  That's {n(result.minutesSkipped)} minutes, from {result.jumps === 1 ? "the 1 time" : `the ${result.jumps} times`} the clocks went forward.
+                  That's {n(result.minutesSkipped)} minutes, from {result.jumps === 1 ? "the 1 time" : `the ${result.jumps} times`} the clocks went forward, or {result.pctSkipped}% of your life so far.
                 </div>
               </div>
             )}
 
             <div className="td-metric-grid">
-              {result.jumps > 0 && (
-                <div className="td-metric">
-                  <div className="td-metric-val amber">{fmtHours(result.hoursSkipped)}</div>
-                  <div className="td-metric-lbl td-label">Hours skipped</div>
-                </div>
-              )}
-              {result.jumps > 0 && (
-                <div className="td-metric">
-                  <div className="td-metric-val">{result.pctSkipped}%</div>
-                  <div className="td-metric-lbl td-label">Of your life so far</div>
-                </div>
-              )}
               <div className="td-metric">
                 <div className="td-metric-val green">{n(result.nsYounger)}ns</div>
                 <div className="td-metric-lbl td-label">Younger than if you'd never flown</div>
@@ -612,18 +576,6 @@ function DissonanceCalc() {
                 <div className="td-metric-val cold">{n(result.totalFlightHours)}h</div>
                 <div className="td-metric-lbl td-label">Hours in the air (estimate)</div>
               </div>
-              {result.jumps === 0 && (
-                <div className="td-metric">
-                  <div className="td-metric-val mist">{n(result.totalHours)}</div>
-                  <div className="td-metric-lbl td-label">Hours lived</div>
-                </div>
-              )}
-              {result.jumps === 0 && (
-                <div className="td-metric">
-                  <div className="td-metric-val amber">0</div>
-                  <div className="td-metric-lbl td-label">Hours skipped by daylight saving</div>
-                </div>
-              )}
               <div className="td-metric">
                 <div className="td-metric-val mist">{result.leapSecondsLived}</div>
                 <div className="td-metric-lbl td-label">Leap seconds lived through</div>
@@ -637,7 +589,7 @@ function DissonanceCalc() {
             <div className="td-insight td-num">
               {result.jumps > 0 && (
                 <p>
-                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{fmtHours(result.hoursSkipped)} ({result.pctSkipped}%)</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
+                  Of your <strong>{n(result.totalHours)} hours</strong>, <span className="amber">{fmtHours(result.hoursSkipped)}</span> were clock-hours that never happened. Each spring the clocks jumped forward and the hour in between was skipped.
                 </p>
               )}
               {result.jumps > 0 && (
@@ -813,7 +765,6 @@ export default function App() {
     <div className="td-root">
       <style>{styles}</style>
       <Starfield/>
-      <ScrollProgress/>
       <div className="td-main">
 
         <div className="td-banner td-label">
