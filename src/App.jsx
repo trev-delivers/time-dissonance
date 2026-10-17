@@ -23,7 +23,7 @@ const HISTORY_EVENTS = [
   { date: "1921-05-15", label: "New York railroad storm", type: "solar", severity: "G5+", desc: "One of the largest geomagnetic storms of the 20th century. Telegraph and telephone systems across North America and Europe severely disrupted." },
   { date: "1938-01-21", label: "Great aurora storm", type: "solar", severity: "G5", desc: "Visible as far south as Portugal. Disrupted radio and early aviation navigation. One of the largest storms of the pre-Space Age era." },
   { date: "1958-02-10", label: "February 1958 superstorm", type: "solar", severity: "G5", desc: "One of the largest storms of the Space Age. Widespread power and communications disruptions across Canada and the northern US." },
-  { date: "1971-01-01", label: "Hafele–Keating experiment", type: "history", desc: "Atomic clocks flown around the world confirm relativistic time dilation. Moving clocks really do run slow." },
+  { date: "1971-01-01", label: "Hafele-Keating experiment", type: "history", desc: "Atomic clocks flown around the world confirm relativistic time dilation. Moving clocks run slow." },
   { date: "1972-08-04", label: "August 1972 storm", type: "solar", severity: "G5", desc: "Caused accidental detonation of US naval mines off Vietnam due to magnetic field disruption. Also knocked out AT&T long-lines communications." },
   { date: "1989-03-13", label: "Quebec blackout", type: "solar", severity: "G5", desc: "Knocked out power across Quebec for 9 hours, leaving 6 million people without electricity. Auroras visible in Texas. Transformer damage took months to repair." },
   { date: "1998-01-01", label: "Leap second disputes begin", type: "history", desc: "Atomic clocks now so precise they outpace Earth's irregular rotation. Leap seconds are added now and then, and software keeps tripping over them." },
@@ -696,10 +696,10 @@ function CombinedTimeline() {
                 {item.severity && (
                   // tabIndex so the tooltip opens on keyboard focus too.
                   <span className="t-tt-wrap td-sev-wrap">
-                    <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0}>
+                    <span className={`td-sev td-sev--${severityClass(item.severity)}`} tabIndex={0} aria-describedby={`td-sev-${item.date}`}>
                       {item.severity}
                     </span>
-                    <span className="t-tt" role="tooltip">{SEVERITY[item.severity].note}</span>
+                    <span className="t-tt" role="tooltip" id={`td-sev-${item.date}`}>{SEVERITY[item.severity].note}</span>
                   </span>
                 )}
               </div>
@@ -767,10 +767,12 @@ export default function App() {
       <Starfield/>
       <div className="td-main">
 
-        <div className="td-banner td-label">
+        <header className="td-banner td-label">
           <span>Time Dissonance</span>
           <LiveTime/>
-        </div>
+        </header>
+
+        <main>
 
         <section className="td-hero">
           <Stagger className="td-hero-lines">
@@ -836,6 +838,7 @@ export default function App() {
         <div className="td-divider"/>
 
         <CombinedTimeline/>
+        </main>
 
         <footer className="td-footer">
           <span className="td-footer-brand">Time <em>Dissonance</em></span>
