@@ -35,6 +35,26 @@ for (const width of [390, 1280]) {
   });
 }
 
+test("the date error stays until the date changes", async ({ page }) => {
+  await page.route("**/_vercel/insights/**", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
+  await page.goto("/");
+  const work = page.getByRole("button", { name: "Work it out" });
+  const message = page.locator("#td-dob-error");
+
+  await work.click();
+  await expect(message).toHaveText("Enter your date of birth.");
+  // It used to clear itself after 3 seconds.
+  await page.waitForTimeout(3500);
+  await expect(message).toHaveText("Enter your date of birth.");
+
+  // The message said "between 1900 and today" but 1899 went through.
+  await page.getByLabel("Date of birth").fill("1899-12-31");
+  await expect(message).toHaveText("");
+  await work.click();
+  await expect(message).toHaveText("Enter a date between 1 January 1900 and today.");
+  await expect(page.getByText("Hours skipped since you were born")).toHaveCount(0);
+});
+
 function sidewaysScroll(page) {
   return page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - window.innerWidth));
 }

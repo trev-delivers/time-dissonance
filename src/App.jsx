@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Starfield from "./Starfield.jsx";
 import { REGIONS, DEFAULT_REGION } from "./lib/regions.js";
 import { FLIGHT_OPTIONS, calcDissonance } from "./lib/calc.js";
-import { localISODate, EARLIEST_DOB } from "./lib/age.js";
+import { dobProblem, localISODate, EARLIEST_DOB } from "./lib/age.js";
 
 /* The region list as [group, regions] pairs for the <optgroup>s. */
 const REGION_GROUPS = [...new Set(REGIONS.map(r => r.group))].map(g => [g, REGIONS.filter(r => r.group === g)]);
@@ -432,6 +432,14 @@ function CountUp({ value, duration = 650, format = v => v.toLocaleString("en-GB"
   return format(display);
 }
 
+/* dobProblem() in src/lib/age.js decides which; the input's min and max
+   match the range message. */
+const DOB_ERRORS = {
+  empty: "Enter your date of birth.",
+  invalid: "Enter a date that exists, like 15 June 1985.",
+  range: "Enter a date between 1 January 1900 and today.",
+};
+
 function DissonanceCalc() {
   const [step, setStep] = useState(1); // 1=inputs, 2=results
   const [dob, setDob] = useState("");
@@ -443,26 +451,20 @@ function DissonanceCalc() {
   // The shake is state rather than a class added to the node: React rewrites
   // className on the re-render that sets dobError, which would wipe it.
   const [shaking, setShaking] = useState(false);
-  const revertTimer = useRef(null);
-
-  useEffect(() => () => window.clearTimeout(revertTimer.current), []);
 
   const calculate = useCallback(() => {
     if (calcState !== "idle") return;
-    const r = calcDissonance(dob, region, flight);
-    if (!r) {
-      // is-error and is-shaking come from ds/css/components/field.css; the
-      // message clears itself after 3 seconds.
-      setDobError(dob
-        ? "Pick a date between 1900 and today."
-        : "Enter your date of birth first.");
+    const problem = dobProblem(dob);
+    if (problem) {
+      // is-error and is-shaking come from ds/css/components/field.css. The
+      // message stays until the date changes.
+      setDobError(DOB_ERRORS[problem]);
       // Drop and re-add in separate frames so the shake can replay.
       setShaking(false);
       requestAnimationFrame(() => setShaking(true));
-      window.clearTimeout(revertTimer.current);
-      revertTimer.current = window.setTimeout(() => setDobError(""), 3000);
       return;
     }
+    const r = calcDissonance(dob, region, flight);
     setDobError("");
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) { setResult(r); setStep(2); return; }
@@ -505,7 +507,7 @@ function DissonanceCalc() {
                         max={localISODate()} min={EARLIEST_DOB}
                         aria-invalid={dobError?"true":undefined}
                         aria-describedby="td-dob-error"
-                        onChange={e=>{setDob(e.target.value);setDobError("");}}
+                        onChange={e=>{if(e.target.value!==dob){setDob(e.target.value);setDobError("");}}}
                         onKeyDown={e=>e.key==="Enter"&&calculate()}
                       />
                     </div>
