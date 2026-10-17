@@ -1,4 +1,4 @@
 {
-  "ignore": ["ds-proposals/", "transitions/", "src/Starfield.jsx", "index.html"],
-  "note": "ds-proposals/ and transitions/ are reference material kept in the repo and aren't imported by the app. src/Starfield.jsx draws on a canvas, which only takes colour strings, so it reads --star-cold, --star-warm and --ds-color-bg at mount and builds rgba() strings from them; the literals the audit sees are those templates. index.html only has the theme-color meta, which can't read a custom property and copies --ds-color-bg by hand."
+  "ignore": ["ds-proposals/", "transitions/"],
+  "note": "ds-proposals/ and transitions/ are reference material and the app doesn't import either. The 7 literal colours left are counted on purpose rather than ignored: src/Starfield.jsx draws on a canvas, which only takes colour strings, so it reads --star-cold, --star-warm and --ds-color-bg at mount and fills in rgba() templates (6), and the theme-color meta in index.html can't read a custom property, so it copies --ds-color-bg by hand (1)."
 }

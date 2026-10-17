@@ -895,7 +895,7 @@ export default function App() {
 
         <footer className="td-footer">
           <span className="td-footer-brand">Time <em>Dissonance</em></span>
-          <span className="td-footer-note td-label">Figures are estimates. Each card links to its source.</span>
+          <span className="td-footer-note td-label">Figures are estimates. Each card links to its source. Build {__BUILD_SHA__}</span>
         </footer>
 
       </div>
